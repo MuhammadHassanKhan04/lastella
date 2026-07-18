@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Heart } from "lucide-react";
-import { PRODUCTS } from "@/lib/products";
+import { useProducts } from "@/lib/products";
 import { useStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { ProductCard } from "@/components/ProductCard";
@@ -13,7 +13,24 @@ export const Route = createFileRoute("/wishlist")({
 function Wishlist() {
   const { wishlist } = useStore();
   const { lang } = useI18n();
-  const items = PRODUCTS.filter((p) => wishlist.includes(p.id));
+  const { data: allProducts = [], isLoading } = useProducts();
+  const items = allProducts.filter((p) => wishlist.includes(p.id));
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+        <h1 className="font-display text-4xl sm:text-5xl mb-10">{lang === "ar" ? "المفضلة" : "Wishlist"}</h1>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="animate-pulse flex flex-col gap-3">
+              <div className="bg-secondary/50 aspect-[4/5] rounded-2xl w-full"></div>
+              <div className="bg-secondary/50 h-4 w-3/4 rounded-full"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -27,6 +44,7 @@ function Wishlist() {
       </div>
     );
   }
+  
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
       <h1 className="font-display text-4xl sm:text-5xl mb-10">{lang === "ar" ? "المفضلة" : "Wishlist"}</h1>

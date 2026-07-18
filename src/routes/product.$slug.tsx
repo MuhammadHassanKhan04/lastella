@@ -2,16 +2,39 @@ import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { Heart, Minus, Plus, ShoppingBag, Shield, Truck, RotateCcw, Star } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { getProduct, PRODUCTS } from "@/lib/products";
+import { useProducts } from "@/lib/products";
 import { useI18n } from "@/lib/i18n";
-import { useStore } from "@/lib/store";
+import { useStore, type Product } from "@/lib/store";
 import { formatPrice } from "@/lib/currency";
 import { ProductCard } from "@/components/ProductCard";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/product/$slug")({
-  loader: ({ params }) => {
-    const product = getProduct(params.slug);
-    if (!product) throw notFound();
+  loader: async ({ params }) => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("slug", params.slug)
+      .eq("active", true)
+      .single();
+
+    if (error || !data) throw notFound();
+
+    const product = {
+      id: data.id,
+      slug: data.slug,
+      name: { en: data.name_en, ar: data.name_ar ?? "" },
+      category: data.category,
+      price: Number(data.price),
+      oldPrice: data.old_price ? Number(data.old_price) : undefined,
+      image: data.image,
+      rating: Number(data.rating),
+      reviews: Number(data.reviews),
+      badge: data.badge || undefined,
+      stock: Number(data.stock),
+      description: data.description_en || undefined
+    } as Product & { description?: string };
+
     return { product };
   },
   head: ({ loaderData }) => ({
@@ -33,7 +56,9 @@ function ProductPage() {
   const { addToCart, toggleWishlist, wishlist } = useStore();
   const [qty, setQty] = useState(1);
   const wished = wishlist.includes(product.id);
-  const related = PRODUCTS.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
+  
+  const { data: allProducts = [] } = useProducts();
+  const related = allProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
@@ -73,7 +98,7 @@ function ProductPage() {
           </div>
 
           <p className="mt-6 text-foreground/75 leading-relaxed">
-            Handcrafted with 18k rose-gold plating and ethically-sourced stones. Each piece is finished with a signature Lastella hallmark and packaged in our pink velvet keepsake case — designed to be worn every day, treasured for a lifetime.
+            {product.description || "Handcrafted with 18k rose-gold plating and ethically-sourced stones. Each piece is finished with a signature Lastella hallmark and packaged in our pink velvet keepsake case — designed to be worn every day, treasured for a lifetime."}
           </p>
 
           <div className="mt-8 space-y-4">

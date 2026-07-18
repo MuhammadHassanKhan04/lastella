@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { ProductCard } from "@/components/ProductCard";
-import { PRODUCTS } from "@/lib/products";
+import { useProducts } from "@/lib/products";
 import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/shop")({
@@ -25,14 +25,16 @@ function Shop() {
   const [cat, setCat] = useState<(typeof cats)[number]>("all");
   const [sort, setSort] = useState<(typeof sorts)[number]>("newest");
   const [max, setMax] = useState(150000);
+  
+  const { data: products = [], isLoading } = useProducts();
 
   const filtered = useMemo(() => {
-    let list = PRODUCTS.filter((p) => (cat === "all" || p.category === cat) && p.price <= max);
+    let list = products.filter((p) => (cat === "all" || p.category === cat) && p.price <= max);
     if (sort === "price-asc") list = [...list].sort((a, b) => a.price - b.price);
     if (sort === "price-desc") list = [...list].sort((a, b) => b.price - a.price);
     if (sort === "rating") list = [...list].sort((a, b) => b.rating - a.rating);
     return list;
-  }, [cat, sort, max]);
+  }, [products, cat, sort, max]);
 
   const catLabel = (c: string) => c === "all" ? (lang === "ar" ? "الكل" : "All") : t(`cat.${c === "necklace" ? "necklace" : c}` as never);
 
@@ -80,9 +82,28 @@ function Shop() {
               <option value="rating">{lang === "ar" ? "الأعلى تقييمًا" : "Highest Rated"}</option>
             </select>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {filtered.map((p) => <ProductCard key={p.id} product={p} />)}
-          </div>
+          
+          {isLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+              {[1,2,3,4,5,6].map(i => (
+                <div key={i} className="animate-pulse flex flex-col gap-3">
+                  <div className="bg-secondary/50 aspect-[4/5] rounded-2xl w-full"></div>
+                  <div className="bg-secondary/50 h-4 w-3/4 rounded-full"></div>
+                  <div className="bg-secondary/50 h-4 w-1/4 rounded-full"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+              {filtered.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          )}
+          
+          {!isLoading && filtered.length === 0 && (
+            <div className="text-center py-20 text-muted-foreground">
+              {lang === "ar" ? "لم يتم العثور على منتجات." : "No products found."}
+            </div>
+          )}
         </div>
       </div>
     </div>

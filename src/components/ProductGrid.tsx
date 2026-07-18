@@ -9,9 +9,10 @@ interface Props {
   title: string;
   subtitle?: string;
   products: Product[];
+  isLoading?: boolean;
 }
 
-export function ProductGrid({ eyebrow, title, subtitle, products }: Props) {
+export function ProductGrid({ eyebrow, title, subtitle, products, isLoading }: Props) {
   const { t } = useI18n();
   return (
     <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
@@ -26,9 +27,28 @@ export function ProductGrid({ eyebrow, title, subtitle, products }: Props) {
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </Link>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-        {products.map((p) => <ProductCard key={p.id} product={p} />)}
-      </div>
+      
+      {isLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="animate-pulse flex flex-col gap-3">
+              <div className="bg-secondary/50 aspect-[4/5] rounded-2xl w-full"></div>
+              <div className="bg-secondary/50 h-4 w-3/4 rounded-full"></div>
+              <div className="bg-secondary/50 h-4 w-1/4 rounded-full"></div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          {products.map((p) => <ProductCard key={p.id} product={p} />)}
+        </div>
+      )}
+      
+      {!isLoading && products.length === 0 && (
+        <div className="text-center py-10 text-muted-foreground">
+          No products available.
+        </div>
+      )}
     </section>
   );
 }
