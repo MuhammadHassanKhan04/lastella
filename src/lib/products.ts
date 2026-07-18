@@ -26,7 +26,10 @@ export function useProducts() {
         reviews: Number(d.reviews),
         badge: d.badge || undefined,
         stock: Number(d.stock),
-        description: d.description_en || undefined
+        description: d.description_en || undefined,
+        images: d.images || [],
+        sizes: d.sizes || [],
+        colors: d.colors || []
       })) as Product[];
     },
   });
@@ -57,7 +60,10 @@ export function useProduct(slug: string) {
         reviews: Number(data.reviews),
         badge: data.badge || undefined,
         stock: Number(data.stock),
-        description: data.description_en || undefined
+        description: data.description_en || undefined,
+        images: data.images || [],
+        sizes: data.sizes || [],
+        colors: data.colors || []
       } as Product & { description?: string };
     },
     enabled: !!slug

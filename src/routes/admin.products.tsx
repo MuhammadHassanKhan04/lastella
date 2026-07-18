@@ -24,6 +24,9 @@ interface Row {
   rating: number;
   reviews: number;
   description_en: string | null;
+  images: string[];
+  sizes: string[];
+  colors: string[];
 }
 
 const CATEGORIES = ["necklace", "bracelet", "ring", "earrings", "pendant", "watch"];
@@ -138,6 +141,7 @@ function AdminProducts() {
 function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClose: () => void; onSaved: () => void }) {
   const [busy, setBusy] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(initial?.image ?? null);
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>(initial?.images ?? []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -152,6 +156,30 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
     const reader = new FileReader();
     reader.onload = (ev) => setImagePreview(ev.target?.result as string);
     reader.readAsDataURL(file);
+  };
+
+  const handleGalleryChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    
+    if (galleryPreviews.length + files.length > 5) {
+      toast.error("Maximum 5 gallery images allowed");
+      return;
+    }
+
+    for (const file of files) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error(`${file.name} is too large (max 2MB)`);
+        continue;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          setGalleryPreviews(prev => [...prev, ev.target!.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -175,6 +203,9 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
       badge: (fd.get("badge") ? String(fd.get("badge")) : null) as string | null,
       description_en: String(fd.get("description_en") || "").trim() || null,
       active: fd.get("active") === "on",
+      sizes: String(fd.get("sizes") || "").split(",").map(s => s.trim()).filter(Boolean),
+      colors: String(fd.get("colors") || "").split(",").map(s => s.trim()).filter(Boolean),
+      images: galleryPreviews,
     };
     
     setBusy(true);
@@ -225,6 +256,8 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
               {BADGES.map((b) => <option key={b} value={b}>{b || "— none —"}</option>)}
             </select>
           </Field>
+          <Field label="Colors (Comma separated)"><input name="colors" defaultValue={initial?.colors?.join(", ")} placeholder="e.g. Gold, Silver" className={inputCls} /></Field>
+          <Field label="Sizes (Comma separated)"><input name="sizes" defaultValue={initial?.sizes?.join(", ")} placeholder="e.g. S, M, L" className={inputCls} /></Field>
           
           <div className="sm:col-span-2 mt-2">
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">Product Image</label>
@@ -251,6 +284,25 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
               )}
             </div>
           </div>
+
+          <div className="sm:col-span-2 mt-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">Gallery Images (Up to 5)</label>
+            <div className="flex flex-wrap gap-3">
+              {galleryPreviews.map((img, i) => (
+                <div key={i} className="relative h-24 w-24 rounded-lg overflow-hidden border border-border group">
+                  <img src={img} alt="" className="h-full w-full object-cover" />
+                  <button type="button" onClick={() => setGalleryPreviews(p => p.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 p-1 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-destructive"><X className="h-3 w-3" /></button>
+                </div>
+              ))}
+              {galleryPreviews.length < 5 && (
+                <label className="h-24 w-24 rounded-lg border-2 border-dashed border-primary/20 bg-secondary/10 hover:bg-secondary/30 flex items-center justify-center cursor-pointer transition-colors">
+                  <input type="file" multiple accept="image/png, image/jpeg, image/webp" onChange={handleGalleryChange} className="hidden" />
+                  <Plus className="h-6 w-6 text-muted-foreground" />
+                </label>
+              )}
+            </div>
+          </div>
+          
           
           <div className="sm:col-span-2"><Field label="Description (EN)"><textarea name="description_en" defaultValue={initial?.description_en ?? ""} rows={3} placeholder="Describe the product details and material..." className={inputCls} /></Field></div>
           <label className="sm:col-span-2 flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-secondary/10 cursor-pointer hover:bg-secondary/20 transition-colors">

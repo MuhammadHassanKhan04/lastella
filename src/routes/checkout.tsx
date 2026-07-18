@@ -52,9 +52,9 @@ function Checkout() {
         .single();
       if (error || !order) throw error ?? new Error("Failed to place order");
 
-      const items = cart.map(({ product, qty }) => ({
+      const items = cart.map(({ product, qty, size, color }) => ({
         order_id: order.id,
-        product_name: product.name.en,
+        product_name: `${product.name.en}${color ? ` - ${color}` : ""}${size ? ` - ${size}` : ""}`,
         product_image: product.image,
         unit_price: product.price,
         quantity: qty,
@@ -112,12 +112,12 @@ function Checkout() {
         <aside className="glass rounded-2xl p-6 h-fit sticky top-32">
           <h2 className="font-display text-2xl mb-6">{lang === "ar" ? "ملخص" : "Summary"}</h2>
           <div className="space-y-3 max-h-64 overflow-auto pr-2">
-            {cart.map(({ product, qty }) => (
-              <div key={product.id} className="flex gap-3 text-sm">
+            {cart.map(({ id, product, qty, size, color }) => (
+              <div key={id} className="flex gap-3 text-sm">
                 <div className="h-14 w-14 rounded-lg overflow-hidden bg-secondary shrink-0"><img src={product.image} alt="" className="h-full w-full object-cover" /></div>
                 <div className="flex-1 min-w-0">
                   <p className="truncate">{product.name[lang]}</p>
-                  <p className="text-muted-foreground text-xs">×{qty}</p>
+                  <p className="text-muted-foreground text-xs">×{qty}{size ? ` | ${size}` : ""}{color ? ` | ${color}` : ""}</p>
                 </div>
                 <span className="font-medium whitespace-nowrap">{formatPrice(product.price * qty)}</span>
               </div>

@@ -21,17 +21,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedUser = localStorage.getItem("mock_user");
     if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      setSession({ user: parsedUser } as Session);
-      setIsAdmin(parsedUser.email === "admin@lastella.com");
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        // If it's an old mock-id format, wipe it so checkout doesn't fail
+        if (parsedUser.id.startsWith("mock-id")) {
+          localStorage.removeItem("mock_user");
+        } else {
+          setUser(parsedUser);
+          setSession({ user: parsedUser } as Session);
+          setIsAdmin(parsedUser.email === "admin@lastella.com");
+        }
+      } catch (e) {}
     }
     setLoading(false);
   }, []);
 
   const signIn = async (email: string, name: string = "User") => {
     const mockUser: User = {
-      id: "mock-id-" + Date.now(),
+      id: crypto.randomUUID(),
       email: email,
       user_metadata: { full_name: name },
       app_metadata: {},

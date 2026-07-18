@@ -12,16 +12,19 @@ export interface Product {
   reviews: number;
   badge?: "new" | "sale" | "bestseller";
   stock: number;
+  images: string[];
+  sizes: string[];
+  colors: string[];
 }
 
-export interface CartItem { product: Product; qty: number; }
+export interface CartItem { id: string; product: Product; qty: number; size?: string; color?: string; }
 
 interface StoreCtx {
   cart: CartItem[];
   wishlist: string[];
-  addToCart: (p: Product, qty?: number) => void;
-  removeFromCart: (id: string) => void;
-  updateQty: (id: string, qty: number) => void;
+  addToCart: (p: Product, qty?: number, size?: string, color?: string) => void;
+  removeFromCart: (cartItemId: string) => void;
+  updateQty: (cartItemId: string, qty: number) => void;
   toggleWishlist: (id: string) => void;
   cartCount: number;
   cartTotal: number;
@@ -46,13 +49,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<StoreCtx>(() => ({
     cart, wishlist,
-    addToCart: (p, qty = 1) => setCart((c) => {
-      const ex = c.find((i) => i.product.id === p.id);
-      if (ex) return c.map((i) => i.product.id === p.id ? { ...i, qty: i.qty + qty } : i);
-      return [...c, { product: p, qty }];
+    addToCart: (p, qty = 1, size, color) => setCart((c) => {
+      const cartItemId = `${p.id}-${size || 'nosize'}-${color || 'nocolor'}`;
+      const ex = c.find((i) => i.id === cartItemId);
+      if (ex) return c.map((i) => i.id === cartItemId ? { ...i, qty: i.qty + qty } : i);
+      return [...c, { id: cartItemId, product: p, qty, size, color }];
     }),
-    removeFromCart: (id) => setCart((c) => c.filter((i) => i.product.id !== id)),
-    updateQty: (id, qty) => setCart((c) => qty <= 0 ? c.filter((i) => i.product.id !== id) : c.map((i) => i.product.id === id ? { ...i, qty } : i)),
+    removeFromCart: (cartItemId) => setCart((c) => c.filter((i) => i.id !== cartItemId)),
+    updateQty: (cartItemId, qty) => setCart((c) => qty <= 0 ? c.filter((i) => i.id !== cartItemId) : c.map((i) => i.id === cartItemId ? { ...i, qty } : i)),
     toggleWishlist: (id) => setWishlist((w) => w.includes(id) ? w.filter((x) => x !== id) : [...w, id]),
     cartCount: cart.reduce((s, i) => s + i.qty, 0),
     cartTotal: cart.reduce((s, i) => s + i.qty * i.product.price, 0),

@@ -60,6 +60,12 @@ function ProductPage() {
   const { data: allProducts = [] } = useProducts();
   const related = allProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
 
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(product.colors?.[0]);
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(product.sizes?.[0]);
+  const [activeImage, setActiveImage] = useState<string>(product.image);
+
+  const gallery = [product.image, ...(product.images || [])].filter(Boolean);
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
       <nav className="text-xs text-muted-foreground mb-8">
@@ -69,15 +75,17 @@ function ProductPage() {
       <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
         <div className="space-y-4">
           <div className="aspect-square overflow-hidden rounded-3xl bg-secondary">
-            <img src={product.image} alt={product.name[lang]} className="h-full w-full object-cover" />
+            <img src={activeImage} alt={product.name[lang]} className="h-full w-full object-cover transition-opacity duration-300" />
           </div>
-          <div className="grid grid-cols-4 gap-3">
-            {[product.image, product.image, product.image, product.image].map((img, i) => (
-              <div key={i} className="aspect-square overflow-hidden rounded-xl bg-secondary ring-1 ring-transparent hover:ring-primary cursor-pointer transition-all">
-                <img src={img} alt="" className="h-full w-full object-cover" />
-              </div>
-            ))}
-          </div>
+          {gallery.length > 1 && (
+            <div className="grid grid-cols-5 gap-3">
+              {gallery.map((img, i) => (
+                <div key={i} onClick={() => setActiveImage(img)} className={`aspect-square overflow-hidden rounded-xl bg-secondary ring-2 cursor-pointer transition-all ${activeImage === img ? 'ring-primary' : 'ring-transparent hover:ring-primary/50'}`}>
+                  <img src={img} alt="" className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -102,22 +110,26 @@ function ProductPage() {
           </p>
 
           <div className="mt-8 space-y-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3">Material</p>
-              <div className="flex gap-2">
-                {["Rose Gold", "Silver", "Yellow Gold"].map((m, i) => (
-                  <button key={m} className={`rounded-full px-4 py-2 text-sm border transition-all ${i === 0 ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary"}`}>{m}</button>
-                ))}
+            {product.colors && product.colors.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3">Color</p>
+                <div className="flex gap-2 flex-wrap">
+                  {product.colors.map((c) => (
+                    <button key={c} onClick={() => setSelectedColor(c)} className={`rounded-full px-4 py-2 text-sm border transition-all ${selectedColor === c ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary"}`}>{c}</button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3">Size</p>
-              <div className="flex gap-2">
-                {["S", "M", "L"].map((s, i) => (
-                  <button key={s} className={`h-11 w-11 rounded-full text-sm border transition-all ${i === 1 ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary"}`}>{s}</button>
-                ))}
+            )}
+            {product.sizes && product.sizes.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3">Size</p>
+                <div className="flex gap-2 flex-wrap">
+                  {product.sizes.map((s) => (
+                    <button key={s} onClick={() => setSelectedSize(s)} className={`h-11 min-w-11 px-3 rounded-full text-sm border transition-all ${selectedSize === s ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary"}`}>{s}</button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="mt-8 flex items-center gap-4">
@@ -127,7 +139,7 @@ function ProductPage() {
               <button onClick={() => setQty(qty + 1)} className="p-3 hover:text-primary" aria-label="Increase"><Plus className="h-4 w-4" /></button>
             </div>
             <button
-              onClick={() => { addToCart(product, qty); toast.success(`${product.name[lang]} added to cart`); }}
+              onClick={() => { addToCart(product, qty, selectedSize, selectedColor); toast.success(`${product.name[lang]} added to cart`); }}
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground px-8 py-4 text-sm font-semibold uppercase tracking-[0.15em] luxury-shadow hover:bg-rose-deep transition-all"
             >
               <ShoppingBag className="h-4 w-4" /> {t("product.addToCart")}

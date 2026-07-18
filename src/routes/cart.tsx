@@ -36,25 +36,28 @@ function Cart() {
       <h1 className="font-display text-4xl sm:text-5xl mb-10">{lang === "ar" ? "سلة التسوق" : "Shopping Cart"}</h1>
       <div className="grid lg:grid-cols-[1fr_360px] gap-10">
         <div className="space-y-4">
-          {cart.map(({ product, qty }) => (
-            <div key={product.id} className="glass rounded-2xl p-4 flex gap-4">
+          {cart.map(({ id, product, qty, size, color }) => (
+            <div key={id} className="glass rounded-2xl p-4 flex gap-4">
               <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-xl overflow-hidden bg-secondary shrink-0">
                 <img src={product.image} alt="" className="h-full w-full object-cover" />
               </div>
               <div className="flex-1 min-w-0 flex flex-col justify-between">
                 <div>
-                  <h3 className="font-display text-lg leading-tight">{product.name[lang]}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">{t(`cat.${product.category}` as never)}</p>
+                  <Link to={`/product/${product.slug}`} className="font-display text-xl sm:text-2xl hover:text-primary transition-colors">{product.name[lang]}</Link>
+                  <div className="text-sm text-muted-foreground mt-1 flex gap-3">
+                    {size && <span>{lang === "ar" ? "المقاس" : "Size"}: {size}</span>}
+                    {color && <span>{lang === "ar" ? "اللون" : "Color"}: {color}</span>}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-2">
                   <div className="flex items-center rounded-full border border-border">
-                    <button onClick={() => updateQty(product.id, qty - 1)} className="p-2 hover:text-primary" aria-label="Decrease"><Minus className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => updateQty(id, qty - 1)} className="p-2 hover:text-primary" aria-label="Decrease"><Minus className="h-3.5 w-3.5" /></button>
                     <span className="w-8 text-center text-sm">{qty}</span>
-                    <button onClick={() => updateQty(product.id, qty + 1)} className="p-2 hover:text-primary" aria-label="Increase"><Plus className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => updateQty(id, qty + 1)} className="p-2 hover:text-primary" aria-label="Increase"><Plus className="h-3.5 w-3.5" /></button>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="font-semibold">{formatPrice(product.price * qty)}</span>
-                    <button onClick={() => removeFromCart(product.id)} className="text-muted-foreground hover:text-destructive" aria-label="Remove"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => removeFromCart(id)} className="text-muted-foreground hover:text-destructive" aria-label="Remove"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               </div>
