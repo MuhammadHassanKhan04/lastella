@@ -137,10 +137,32 @@ function AdminProducts() {
 
 function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClose: () => void; onSaved: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(initial?.image ?? null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Optional: simple size check (e.g. max 2MB to keep DB small since we're using base64)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image should be less than 2MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    
+    if (!imagePreview) {
+      toast.error("Please upload a product image");
+      return;
+    }
+
     const payload = {
       slug: String(fd.get("slug")).trim(),
       name_en: String(fd.get("name_en")).trim(),
@@ -148,22 +170,23 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
       category: String(fd.get("category")),
       price: Number(fd.get("price")),
       old_price: fd.get("old_price") ? Number(fd.get("old_price")) : null,
-      image: String(fd.get("image")).trim(),
+      image: imagePreview,
       stock: Number(fd.get("stock") || 0),
       badge: (fd.get("badge") ? String(fd.get("badge")) : null) as string | null,
       description_en: String(fd.get("description_en") || "").trim() || null,
       active: fd.get("active") === "on",
     };
+    
     setBusy(true);
     try {
       if (initial) {
         const { error } = await supabase.from("products").update(payload).eq("id", initial.id);
         if (error) throw error;
-        toast.success("Updated");
+        toast.success("Updated successfully");
       } else {
         const { error } = await supabase.from("products").insert(payload);
         if (error) throw error;
-        toast.success("Created");
+        toast.success("Created successfully");
       }
       onSaved();
     } catch (err) {
@@ -174,40 +197,74 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40">
-      <form onSubmit={onSubmit} className="bg-background rounded-3xl border border-border w-full max-w-2xl max-h-[90vh] overflow-auto">
-        <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-background">
-          <h3 className="font-display text-2xl">{initial ? "Edit Product" : "New Product"}</h3>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-secondary"><X className="h-5 w-5" /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm transition-all">
+      <form onSubmit={onSubmit} className="bg-background rounded-3xl border border-border/60 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-border/50 bg-background/80 backdrop-blur-md">
+          <h3 className="font-display text-2xl bg-gradient-to-r from-primary to-rose-deep bg-clip-text text-transparent">
+            {initial ? "Edit Product" : "New Product"}
+          </h3>
+          <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-secondary/80 transition-colors">
+            <X className="h-5 w-5 text-muted-foreground" />
+          </button>
         </div>
-        <div className="p-6 grid sm:grid-cols-2 gap-4">
+        
+        <div className="p-6 grid sm:grid-cols-2 gap-5 overflow-y-auto">
           <Field label="Name (EN)"><input name="name_en" defaultValue={initial?.name_en} required className={inputCls} /></Field>
           <Field label="Name (AR)"><input name="name_ar" defaultValue={initial?.name_ar ?? ""} className={inputCls} /></Field>
-          <Field label="Slug"><input name="slug" defaultValue={initial?.slug} required pattern="[a-z0-9-]+" className={inputCls} /></Field>
+          <Field label="Slug"><input name="slug" defaultValue={initial?.slug} required pattern="[a-z0-9-]+" placeholder="e.g., gold-necklace" className={inputCls} /></Field>
           <Field label="Category">
             <select name="category" defaultValue={initial?.category ?? "necklace"} className={inputCls}>
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
           <Field label="Price (Rs.)"><input name="price" type="number" step="1" min="0" defaultValue={initial?.price} required className={inputCls} /></Field>
-          <Field label="Old Price (Rs.)"><input name="old_price" type="number" step="1" min="0" defaultValue={initial?.old_price ?? ""} className={inputCls} /></Field>
-          <Field label="Stock"><input name="stock" type="number" min="0" defaultValue={initial?.stock ?? 0} className={inputCls} /></Field>
-          <Field label="Badge">
+          <Field label="Old Price (Rs.)"><input name="old_price" type="number" step="1" min="0" defaultValue={initial?.old_price ?? ""} placeholder="Optional discount" className={inputCls} /></Field>
+          <Field label="Stock (Quantity)"><input name="stock" type="number" min="0" defaultValue={initial?.stock ?? 0} className={inputCls} /></Field>
+          <Field label="Badge (Highlight)">
             <select name="badge" defaultValue={initial?.badge ?? ""} className={inputCls}>
               {BADGES.map((b) => <option key={b} value={b}>{b || "— none —"}</option>)}
             </select>
           </Field>
-          <div className="sm:col-span-2"><Field label="Image URL"><input name="image" defaultValue={initial?.image} required placeholder="/assets/prod-1.jpg or https://…" className={inputCls} /></Field></div>
-          <div className="sm:col-span-2"><Field label="Description (EN)"><textarea name="description_en" defaultValue={initial?.description_en ?? ""} rows={3} className={inputCls} /></Field></div>
-          <label className="sm:col-span-2 flex items-center gap-2 text-sm">
-            <input type="checkbox" name="active" defaultChecked={initial?.active ?? true} className="accent-primary" />
-            Active (visible in shop)
+          
+          <div className="sm:col-span-2 mt-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">Product Image</label>
+            <div className="relative border-2 border-dashed border-primary/20 rounded-2xl bg-secondary/10 hover:bg-secondary/30 transition-all group overflow-hidden">
+              <input type="file" accept="image/png, image/jpeg, image/webp" onChange={handleImageChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+              {imagePreview ? (
+                <div className="relative h-48 w-full flex items-center justify-center p-4">
+                  <img src={imagePreview} alt="Preview" className="h-full w-auto object-contain rounded-lg shadow-sm" />
+                  <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300 backdrop-blur-sm">
+                    <p className="text-sm font-semibold flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground shadow-md">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
+                      Change Image
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-12 flex flex-col items-center justify-center text-muted-foreground gap-3">
+                  <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1 shadow-sm group-hover:scale-110 transition-transform">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground/80">Click or drag image here</p>
+                  <p className="text-xs opacity-70">PNG, JPG or WEBP (Max 2MB)</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="sm:col-span-2"><Field label="Description (EN)"><textarea name="description_en" defaultValue={initial?.description_en ?? ""} rows={3} placeholder="Describe the product details and material..." className={inputCls} /></Field></div>
+          <label className="sm:col-span-2 flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-secondary/10 cursor-pointer hover:bg-secondary/20 transition-colors">
+            <input type="checkbox" name="active" defaultChecked={initial?.active ?? true} className="h-4 w-4 rounded border-border text-primary focus:ring-primary accent-primary" />
+            <span className="text-sm font-medium">Active (visible in the shop)</span>
           </label>
         </div>
-        <div className="p-6 border-t border-border flex justify-end gap-3 sticky bottom-0 bg-background">
-          <button type="button" onClick={onClose} className="rounded-full border border-border px-5 py-2.5 text-sm font-medium hover:bg-secondary">Cancel</button>
-          <button disabled={busy} className="rounded-full bg-primary text-primary-foreground px-6 py-2.5 text-sm font-semibold uppercase tracking-wider hover:bg-rose-deep disabled:opacity-60">
-            {busy ? "Saving…" : "Save"}
+        
+        <div className="p-5 border-t border-border/50 flex justify-end gap-3 bg-secondary/10 shrink-0">
+          <button type="button" onClick={onClose} className="rounded-full bg-background border border-border px-6 py-2.5 text-sm font-medium hover:bg-secondary/80 transition-colors">Cancel</button>
+          <button disabled={busy} className="rounded-full bg-primary text-primary-foreground px-8 py-2.5 text-sm font-semibold uppercase tracking-wider hover:bg-rose-deep shadow-md transition-all disabled:opacity-60 disabled:shadow-none flex items-center gap-2">
+            {busy ? (
+              <><svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Saving...</>
+            ) : "Save Product"}
           </button>
         </div>
       </form>
