@@ -1,25 +1,50 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Package, ShoppingBag, DollarSign, TrendingUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Package, ShoppingBag, DollarSign, Users, TrendingUp } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
-import { useProducts } from "@/lib/products";
-import { useOrders } from "@/lib/orders";
 
 export const Route = createFileRoute("/admin/")({
   component: Dashboard,
 });
 
+interface Stats {
+  products: number;
+  orders: number;
+  revenue: number;
+  pending: number;
+}
+
+interface RecentOrder {
+  id: string;
+  order_number: string;
+  full_name: string;
+  total: number;
+  status: string;
+  created_at: string;
+}
+
 function Dashboard() {
-  const { data: products = [] } = useProducts();
-  const { data: orders = [] } = useOrders();
+  const [stats, setStats] = useState<Stats>({ products: 0, orders: 0, revenue: 0, pending: 0 });
+  const [recent, setRecent] = useState<RecentOrder[]>([]);
 
-  const stats = {
-    products: products.length,
-    orders: orders.length,
-    revenue: orders.reduce((sum, order) => sum + Number(order.total), 0),
-    pending: orders.filter((o) => o.status === "pending").length,
-  };
-
-  const recent = orders.slice(0, 8); // already sorted in hook
+  useEffect(() => {
+    (async () => {
+      const [p, o, r] = await Promise.all([
+        supabase.from("products").select("id", { count: "exact", head: true }),
+        supabase.from("orders").select("id, total, status", { count: "exact" }),
+        supabase.from("orders").select("id, order_number, full_name, total, status, created_at").order("created_at", { ascending: false }).limit(8),
+      ]);
+      const orders = (o.data as { total: number; status: string }[] | null) ?? [];
+      setStats({
+        products: p.count ?? 0,
+        orders: o.count ?? orders.length,
+        revenue: orders.reduce((s, x) => s + Number(x.total), 0),
+        pending: orders.filter((x) => x.status === "pending").length,
+      });
+      setRecent((r.data as RecentOrder[] | null) ?? []);
+    })();
+  }, []);
 
   const cards = [
     { label: "Products", value: stats.products, Icon: Package, tint: "bg-blue-500/10 text-blue-600" },

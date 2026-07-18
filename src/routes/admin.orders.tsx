@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
-import { useOrders, useOrderActions } from "@/lib/orders";
 
 export const Route = createFileRoute("/admin/orders")({
   component: AdminOrders,
@@ -12,17 +12,63 @@ export const Route = createFileRoute("/admin/orders")({
 const STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"] as const;
 type Status = (typeof STATUSES)[number];
 
-function AdminOrders() {
-  const [filter, setFilter] = useState<"all" | Status>("all");
-  const { data: orders = [], isLoading } = useOrders(filter);
-  const { updateStatus } = useOrderActions();
-  const [open, setOpen] = useState<string | null>(null);
+interface Order {
+  id: string;
+  order_number: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  address: string;
+  city: string;
+  postal_code: string | null;
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  status: Status;
+  payment_method: string;
+  notes: string | null;
+  created_at: string;
+}
 
-  function handleStatusChange(id: string, status: Status) {
-    updateStatus.mutate({ id, status }, {
-      onSuccess: () => toast.success("Status updated"),
-      onError: (err) => toast.error(err.message)
-    });
+interface OrderItem {
+  id: string;
+  product_name: string;
+  product_image: string | null;
+  unit_price: number;
+  quantity: number;
+}
+
+function AdminOrders() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [items, setItems] = useState<Record<string, OrderItem[]>>({});
+  const [open, setOpen] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | Status>("all");
+
+  async function refresh() {
+    setLoading(true);
+    let q = supabase.from("orders").select("*").order("created_at", { ascending: false });
+    if (filter !== "all") q = q.eq("status", filter);
+    const { data, error } = await q;
+    if (error) toast.error(error.message);
+    setOrders((data as Order[] | null) ?? []);
+    setLoading(false);
+  }
+
+  useEffect(() => { refresh(); }, [filter]);
+
+  async function loadItems(orderId: string) {
+    if (items[orderId]) return;
+    const { data } = await supabase.from("order_items").select("*").eq("order_id", orderId);
+    setItems((s) => ({ ...s, [orderId]: (data as OrderItem[] | null) ?? [] }));
+  }
+
+  async function updateStatus(id: string, status: Status) {
+    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Status updated");
+    refresh();
   }
 
   return (
@@ -36,7 +82,7 @@ function AdminOrders() {
       </div>
 
       <div className="glass rounded-2xl overflow-hidden">
-        {isLoading ? (
+        {loading ? (
           <div className="p-10 text-center text-muted-foreground">Loading…</div>
         ) : orders.length === 0 ? (
           <div className="p-10 text-center text-muted-foreground">No orders.</div>
@@ -44,13 +90,10 @@ function AdminOrders() {
           <div className="divide-y divide-border">
             {orders.map((o) => {
               const isOpen = open === o.id;
-              // Add a generic subtotal since it might be missing in local representation
-              const fallbackSubtotal = (o.items ?? []).reduce((acc, it) => acc + (it.price * it.quantity), 0);
-              
               return (
                 <div key={o.id}>
                   <button
-                    onClick={() => setOpen(isOpen ? null : o.id)}
+                    onClick={() => { const next = isOpen ? null : o.id; setOpen(next); if (next) loadItems(o.id); }}
                     className="w-full text-start px-5 py-4 flex items-center gap-4 hover:bg-secondary/30 transition"
                   >
                     <div className="min-w-0 flex-1 grid sm:grid-cols-5 gap-3 items-center">
@@ -70,9 +113,11 @@ function AdminOrders() {
                         <p className="text-muted-foreground">{o.email}</p>
                         <p className="text-muted-foreground">{o.phone}</p>
                         <p className="text-muted-foreground">{o.address}, {o.city}{o.postal_code ? ` – ${o.postal_code}` : ""}</p>
+                        <p className="text-xs uppercase tracking-wider mt-3">Payment: <span className="font-medium">{o.payment_method}</span></p>
+                        {o.notes && <p className="text-xs italic text-muted-foreground mt-2">"{o.notes}"</p>}
                         <div className="mt-4">
                           <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground block mb-1.5">Update status</label>
-                          <select value={o.status} onChange={(e) => handleStatusChange(o.id, e.target.value as Status)} className="rounded-xl border border-border bg-background px-3 py-2 text-sm">
+                          <select value={o.status} onChange={(e) => updateStatus(o.id, e.target.value as Status)} className="rounded-xl border border-border bg-background px-3 py-2 text-sm">
                             {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </div>
@@ -80,21 +125,23 @@ function AdminOrders() {
                       <div>
                         <h4 className="font-semibold uppercase tracking-wider text-xs text-muted-foreground mb-3">Items</h4>
                         <div className="space-y-2">
-                          {(o.items ?? []).map((it, idx) => (
-                            <div key={it.id || idx} className="flex items-center gap-3 text-sm">
+                          {(items[o.id] ?? []).map((it) => (
+                            <div key={it.id} className="flex items-center gap-3 text-sm">
                               <div className="h-12 w-12 rounded-lg bg-secondary overflow-hidden shrink-0">
-                                {it.image && <img src={it.image} alt="" className="h-full w-full object-cover" />}
+                                {it.product_image && <img src={it.product_image} alt="" className="h-full w-full object-cover" />}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="truncate">{it.name}</p>
-                                <p className="text-xs text-muted-foreground">×{it.quantity} · {formatPrice(Number(it.price))}</p>
+                                <p className="truncate">{it.product_name}</p>
+                                <p className="text-xs text-muted-foreground">×{it.quantity} · {formatPrice(Number(it.unit_price))}</p>
                               </div>
-                              <span className="font-semibold">{formatPrice(Number(it.price) * it.quantity)}</span>
+                              <span className="font-semibold">{formatPrice(Number(it.unit_price) * it.quantity)}</span>
                             </div>
                           ))}
                         </div>
                         <div className="border-t border-border mt-4 pt-3 space-y-1 text-sm">
-                          <Row label="Subtotal" value={formatPrice(fallbackSubtotal)} />
+                          <Row label="Subtotal" value={formatPrice(Number(o.subtotal))} />
+                          <Row label="Shipping" value={Number(o.shipping) === 0 ? "Free" : formatPrice(Number(o.shipping))} />
+                          <Row label="Tax" value={formatPrice(Number(o.tax))} />
                           <Row label="Total" value={formatPrice(Number(o.total))} bold />
                         </div>
                       </div>
