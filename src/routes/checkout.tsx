@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { formatPrice } from "@/lib/currency";
-import { supabase } from "@/integrations/supabase/client";
+import { useOrderActions } from "@/lib/orders";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout · Lastella" }, { name: "description", content: "Complete your Lastella order." }] }),
@@ -18,6 +18,8 @@ function Checkout() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { cart, cartTotal } = useStore();
+  const { createOrder } = useOrderActions();
+  
   const shipping = cartTotal > 10000 ? 0 : 500;
   const tax = cartTotal * 0.05;
   const grand = cartTotal + shipping + tax;
@@ -30,39 +32,36 @@ function Checkout() {
     const fd = new FormData(e.currentTarget);
     setSubmitting(true);
     try {
-      const { data: order, error } = await supabase
-        .from("orders")
-        .insert({
-          user_id: user?.id ?? null,
-          email: String(fd.get("email")),
-          full_name: `${fd.get("first_name")} ${fd.get("last_name")}`.trim(),
-          phone: String(fd.get("phone")),
-          address: String(fd.get("address")),
-          city: String(fd.get("city")),
-          postal_code: String(fd.get("postal_code") || ""),
-          country: "Pakistan",
-          subtotal: cartTotal,
-          shipping,
-          tax,
-          total: grand,
-          payment_method: payment,
-          notes: String(fd.get("notes") || ""),
-        })
-        .select("id, order_number")
-        .single();
-      if (error || !order) throw error ?? new Error("Failed to place order");
-
+      const orderId = crypto.randomUUID();
+      const orderNumber = 'LS-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+      
       const items = cart.map(({ product, qty }) => ({
-        order_id: order.id,
-        product_name: product.name.en,
-        product_image: product.image,
-        unit_price: product.price,
+        id: crypto.randomUUID(),
+        order_id: orderId,
+        product_id: product.id,
+        name: product.name.en,
+        image: product.image,
+        price: product.price,
         quantity: qty,
       }));
-      const { error: itemsErr } = await supabase.from("order_items").insert(items);
-      if (itemsErr) throw itemsErr;
 
-      toast.success(`Order ${order.order_number} placed!`);
+      await createOrder.mutateAsync({
+        id: orderId,
+        order_number: orderNumber,
+        full_name: `${fd.get("first_name")} ${fd.get("last_name")}`.trim(),
+        email: String(fd.get("email")),
+        phone: String(fd.get("phone")),
+        address: String(fd.get("address")),
+        city: String(fd.get("city")),
+        postal_code: String(fd.get("postal_code") || ""),
+        country: "Pakistan",
+        total: grand,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        items,
+      });
+
+      toast.success(`Order ${orderNumber} placed!`);
       try { localStorage.removeItem("lastella-cart"); } catch {}
       window.location.href = "/account";
     } catch (err) {

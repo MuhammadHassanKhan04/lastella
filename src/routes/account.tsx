@@ -1,24 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { LogOut, Package, ShieldCheck } from "lucide-react";
+import { useUserOrders } from "@/lib/orders";
 
 export const Route = createFileRoute("/account")({
   head: () => ({ meta: [{ title: "Account · Lastella" }, { name: "description", content: "Sign in to your Lastella account." }] }),
   component: Account,
 });
-
-interface OrderRow {
-  id: string;
-  order_number: string;
-  total: number;
-  status: string;
-  created_at: string;
-}
 
 function Account() {
   const { lang } = useI18n();
@@ -30,13 +22,7 @@ function Account() {
 function Dashboard({ signOut, isAdmin, email }: { signOut: () => Promise<void>; isAdmin: boolean; email: string }) {
   const { lang } = useI18n();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<OrderRow[]>([]);
-
-  useEffect(() => {
-    supabase.from("orders").select("id, order_number, total, status, created_at").order("created_at", { ascending: false }).then(({ data }) => {
-      setOrders((data as OrderRow[] | null) ?? []);
-    });
-  }, []);
+  const { data: orders = [] } = useUserOrders(email);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
