@@ -30,10 +30,12 @@ function Checkout() {
     const fd = new FormData(e.currentTarget);
     setSubmitting(true);
     try {
+      const orderNumber = `LS-${Date.now().toString().slice(-6)}`;
       const { data: order, error } = await supabase
         .from("orders")
         .insert({
           user_id: user?.id ?? null,
+          order_number: orderNumber,
           email: String(fd.get("email")),
           full_name: `${fd.get("first_name")} ${fd.get("last_name")}`.trim(),
           phone: String(fd.get("phone")),
