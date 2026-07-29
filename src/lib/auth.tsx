@@ -19,21 +19,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("mock_user");
-    if (storedUser) {
-      try {
+    // Safety timeout — loading never gets stuck for more than 1s
+    const timer = setTimeout(() => setLoading(false), 1000);
+    try {
+      const storedUser = localStorage.getItem("mock_user");
+      if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        // If it's an old mock-id format, wipe it so checkout doesn't fail
-        if (parsedUser.id.startsWith("mock-id")) {
-          localStorage.removeItem("mock_user");
-        } else {
-          setUser(parsedUser);
-          setSession({ user: parsedUser } as Session);
-          setIsAdmin(parsedUser.email === "admin@lastella.com");
-        }
-      } catch (e) {}
-    }
+        // Accept both old mock-id and new UUID formats
+        setUser(parsedUser);
+        setSession({ user: parsedUser } as Session);
+        setIsAdmin(parsedUser.email === "admin@lastella.com");
+      }
+    } catch (e) {}
     setLoading(false);
+    clearTimeout(timer);
+    return () => clearTimeout(timer);
   }, []);
 
   const signIn = async (email: string, name: string = "User") => {

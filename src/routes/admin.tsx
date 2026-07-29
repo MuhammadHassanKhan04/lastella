@@ -13,14 +13,27 @@ function AdminLayout() {
   const navigate = useNavigate();
   const { location } = useRouterState();
 
+  // Derive admin status directly from email as safety net
+  const hasAdminAccess = isAdmin || user?.email === "admin@lastella.com";
+
   useEffect(() => {
     if (loading) return;
     if (!user) navigate({ to: "/account" });
   }, [loading, user, navigate]);
 
-  if (loading) return <div className="p-24 text-center text-muted-foreground">Loading…</div>;
+  if (loading) return (
+    <div className="p-24 text-center">
+      <div className="inline-flex flex-col items-center gap-4 text-muted-foreground">
+        <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        <p className="text-sm">Loading admin panel...</p>
+      </div>
+    </div>
+  );
   if (!user) return null;
-  if (!isAdmin) {
+  if (!hasAdminAccess) {
     return (
       <div className="mx-auto max-w-md px-4 py-24 text-center">
         <h1 className="font-display text-3xl">Access Denied</h1>
