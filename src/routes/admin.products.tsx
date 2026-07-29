@@ -141,75 +141,106 @@ function AdminProducts() {
 function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClose: () => void; onSaved: () => void }) {
   const [busy, setBusy] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(initial?.image ?? null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [galleryPreviews, setGalleryPreviews] = useState<string[]>(initial?.images ?? []);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [nameEn, setNameEn] = useState(initial?.name_en ?? "");
+  const [nameAr, setNameAr] = useState(initial?.name_ar ?? "");
+  const [slug, setSlug] = useState(initial?.slug ?? "");
+  const [translating, setTranslating] = useState(false);
+
+  async function translateToArabic(text: string) {
+    if (!text.trim() || nameAr) return;
+    // Auto-generate slug from English name
+    if (!slug) {
+      setSlug(text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    }
+    setTranslating(true);
+    try {
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|ar`);
+      const json = await res.json();
+      if (json.responseStatus === 200 && json.responseData?.translatedText) {
+        setNameAr(json.responseData.translatedText);
+      }
+    } catch (e) {
+    } finally {
+      setTranslating(false);
+    }
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Optional: simple size check (e.g. max 2MB to keep DB small since we're using base64)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image should be less than 2MB");
-      return;
-    }
-
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image should be less than 5MB"); return; }
+    setImageFile(file);
     const reader = new FileReader();
     reader.onload = (ev) => setImagePreview(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
 
-  const handleGalleryChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    
-    if (galleryPreviews.length + files.length > 5) {
-      toast.error("Maximum 5 gallery images allowed");
-      return;
-    }
-
-    for (const file of files) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error(`${file.name} is too large (max 2MB)`);
-        continue;
-      }
+    if (galleryPreviews.length + files.length > 5) { toast.error("Maximum 5 gallery images allowed"); return; }
+    const newFiles = files.filter(f => {
+      if (f.size > 5 * 1024 * 1024) { toast.error(`${f.name} is too large (max 5MB)`); return false; }
+      return true;
+    });
+    setGalleryFiles(prev => [...prev, ...newFiles]);
+    newFiles.forEach(file => {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (ev.target?.result) {
-          setGalleryPreviews(prev => [...prev, ev.target!.result as string]);
-        }
-      };
+      reader.onload = (ev) => { if (ev.target?.result) setGalleryPreviews(prev => [...prev, ev.target!.result as string]); };
       reader.readAsDataURL(file);
-    }
+    });
   };
+
+  async function uploadImage(file: File): Promise<string> {
+    const ext = file.name.split('.').pop();
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from('products').upload(filename, file, { upsert: true });
+    if (error) throw new Error(`Image upload failed: ${error.message}`);
+    const { data } = supabase.storage.from('products').getPublicUrl(filename);
+    return data.publicUrl;
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    
-    if (!imagePreview) {
-      toast.error("Please upload a product image");
-      return;
-    }
-
-    const payload = {
-      slug: String(fd.get("slug")).trim(),
-      name_en: String(fd.get("name_en")).trim(),
-      name_ar: String(fd.get("name_ar") || "").trim() || null,
-      category: String(fd.get("category")),
-      price: Number(fd.get("price")),
-      old_price: fd.get("old_price") ? Number(fd.get("old_price")) : null,
-      image: imagePreview,
-      stock: Number(fd.get("stock") || 0),
-      badge: (fd.get("badge") ? String(fd.get("badge")) : null) as string | null,
-      description_en: String(fd.get("description_en") || "").trim() || null,
-      active: fd.get("active") === "on",
-      sizes: String(fd.get("sizes") || "").split(",").map(s => s.trim()).filter(Boolean),
-      colors: String(fd.get("colors") || "").split(",").map(s => s.trim()).filter(Boolean),
-      images: galleryPreviews,
-    };
-    
+    if (!imagePreview) { toast.error("Please upload a product image"); return; }
     setBusy(true);
     try {
+      // Upload main image if new file selected
+      let mainImageUrl = initial?.image ?? imagePreview;
+      if (imageFile) {
+        mainImageUrl = await uploadImage(imageFile);
+      }
+
+      // Upload new gallery images
+      const existingUrls = galleryPreviews.filter(p => p.startsWith('http'));
+      const newGalleryUrls: string[] = [];
+      for (const file of galleryFiles) {
+        const url = await uploadImage(file);
+        newGalleryUrls.push(url);
+      }
+      const allGalleryUrls = [...existingUrls, ...newGalleryUrls];
+
+      const payload = {
+        slug: String(fd.get("slug")).trim(),
+        name_en: String(fd.get("name_en")).trim(),
+        name_ar: String(fd.get("name_ar") || "").trim() || null,
+        category: String(fd.get("category")),
+        price: Number(fd.get("price")),
+        old_price: fd.get("old_price") ? Number(fd.get("old_price")) : null,
+        image: mainImageUrl,
+        stock: Number(fd.get("stock") || 0),
+        badge: (fd.get("badge") ? String(fd.get("badge")) : null) as string | null,
+        description_en: String(fd.get("description_en") || "").trim() || null,
+        active: fd.get("active") === "on",
+        sizes: String(fd.get("sizes") || "").split(",").map(s => s.trim()).filter(Boolean),
+        colors: String(fd.get("colors") || "").split(",").map(s => s.trim()).filter(Boolean),
+        images: allGalleryUrls,
+      };
+
       if (initial) {
         const { error } = await supabase.from("products").update(payload).eq("id", initial.id);
         if (error) throw error;
@@ -221,7 +252,9 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
       }
       onSaved();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      const msg = err instanceof Error ? err.message : "Save failed";
+      console.error(err);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -240,9 +273,47 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
         </div>
         
         <div className="p-6 grid sm:grid-cols-2 gap-5 overflow-y-auto">
-          <Field label="Name (EN)"><input name="name_en" defaultValue={initial?.name_en} required className={inputCls} /></Field>
-          <Field label="Name (AR)"><input name="name_ar" defaultValue={initial?.name_ar ?? ""} className={inputCls} /></Field>
-          <Field label="Slug"><input name="slug" defaultValue={initial?.slug} required pattern="[a-z0-9-]+" placeholder="e.g., gold-necklace" className={inputCls} /></Field>
+          <Field label="Name (EN)">
+            <div className="relative">
+              <input
+                name="name_en"
+                value={nameEn}
+                onChange={(e) => setNameEn(e.target.value)}
+                onBlur={(e) => translateToArabic(e.target.value)}
+                required
+                placeholder="e.g. Rose Gold Necklace"
+                className={inputCls}
+              />
+            </div>
+          </Field>
+          <Field label={translating ? "Name (AR) — Translating..." : "Name (AR) — Auto from EN"}>
+            <div className="relative">
+              <input
+                name="name_ar"
+                value={nameAr}
+                onChange={(e) => setNameAr(e.target.value)}
+                placeholder={translating ? "Translating..." : "Auto-translated or type manually"}
+                dir="rtl"
+                className={`${inputCls} ${translating ? 'opacity-50' : ''}`}
+              />
+              {translating && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                </div>
+              )}
+            </div>
+          </Field>
+          <Field label="Slug (Auto-generated)">
+            <input
+              name="slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              required
+              pattern="[a-z0-9-]+"
+              placeholder="auto-filled from name"
+              className={inputCls}
+            />
+          </Field>
           <Field label="Category">
             <select name="category" defaultValue={initial?.category ?? "necklace"} className={inputCls}>
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
