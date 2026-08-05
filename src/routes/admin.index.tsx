@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Package, ShoppingBag, DollarSign, Users, TrendingUp } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 
 export const Route = createFileRoute("/admin/")({
@@ -30,19 +29,27 @@ function Dashboard() {
 
   useEffect(() => {
     (async () => {
-      const [p, o, r] = await Promise.all([
-        supabase.from("products").select("id", { count: "exact", head: true }),
-        supabase.from("orders").select("id, total, status", { count: "exact" }),
-        supabase.from("orders").select("id, order_number, full_name, total, status, created_at").order("created_at", { ascending: false }).limit(8),
-      ]);
-      const orders = (o.data as { total: number; status: string }[] | null) ?? [];
-      setStats({
-        products: p.count ?? 0,
-        orders: o.count ?? orders.length,
-        revenue: orders.reduce((s, x) => s + Number(x.total), 0),
-        pending: orders.filter((x) => x.status === "pending").length,
-      });
-      setRecent((r.data as RecentOrder[] | null) ?? []);
+      try {
+        const [resP, resO] = await Promise.all([
+          fetch("/api/products?all=true"),
+          fetch("/api/orders?all=true"),
+        ]);
+        const products = await resP.json();
+        const orders = await resO.json();
+
+        const pList = Array.isArray(products) ? products : [];
+        const oList = Array.isArray(orders) ? orders : [];
+
+        setStats({
+          products: pList.length,
+          orders: oList.length,
+          revenue: oList.reduce((s: number, x: any) => s + Number(x.total || 0), 0),
+          pending: oList.filter((x: any) => x.status === "pending").length,
+        });
+        setRecent(oList.slice(0, 8));
+      } catch (e) {
+        console.error("Dashboard stats error", e);
+      }
     })();
   }, []);
 

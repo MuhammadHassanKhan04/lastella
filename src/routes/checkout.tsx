@@ -6,7 +6,6 @@ import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { formatPrice } from "@/lib/currency";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout · Lastella" }, { name: "description", content: "Complete your Lastella order." }] }),
@@ -31,9 +30,11 @@ function Checkout() {
     setSubmitting(true);
     try {
       const orderNumber = `LS-${Date.now().toString().slice(-6)}`;
-      const { data: order, error } = await supabase
-        .from("orders")
-        .insert({
+
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           user_id: user?.id ?? null,
           order_number: orderNumber,
           email: String(fd.get("email")),
@@ -49,22 +50,22 @@ function Checkout() {
           total: grand,
           payment_method: payment,
           notes: String(fd.get("notes") || ""),
-        })
-        .select("id, order_number")
-        .single();
-      if (error || !order) throw error ?? new Error("Failed to place order");
+          items: cart.map(({ product, qty, size, color }) => ({
+            product_name: `${product.name.en}${color ? ` - ${color}` : ""}${size ? ` - ${size}` : ""}`,
+            product_image: product.image,
+            unit_price: product.price,
+            quantity: qty,
+          })),
+        }),
+      });
 
-      const items = cart.map(({ product, qty, size, color }) => ({
-        order_id: order.id,
-        product_name: `${product.name.en}${color ? ` - ${color}` : ""}${size ? ` - ${size}` : ""}`,
-        product_image: product.image,
-        unit_price: product.price,
-        quantity: qty,
-      }));
-      const { error: itemsErr } = await supabase.from("order_items").insert(items);
-      if (itemsErr) throw itemsErr;
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to place order");
+      }
 
-      toast.success(`Order ${order.order_number} placed!`);
+      const order = await res.json();
+      toast.success(`Order ${order.order_number} placed successfully!`);
       try { localStorage.removeItem("lastella-cart"); } catch {}
       window.location.href = "/account";
     } catch (err) {

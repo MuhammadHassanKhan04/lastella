@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { LogOut, Package, ShieldCheck } from "lucide-react";
 
@@ -33,9 +32,10 @@ function Dashboard({ signOut, isAdmin, email }: { signOut: () => Promise<void>; 
   const [orders, setOrders] = useState<OrderRow[]>([]);
 
   useEffect(() => {
-    supabase.from("orders").select("id, order_number, total, status, created_at").order("created_at", { ascending: false }).then(({ data }) => {
-      setOrders((data as OrderRow[] | null) ?? []);
-    });
+    fetch("/api/orders?all=true")
+      .then((r) => r.json())
+      .then((data) => setOrders(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, []);
 
   return (

@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 
 export const Route = createFileRoute("/admin/orders")({
@@ -48,11 +47,14 @@ function AdminOrders() {
 
   async function refresh() {
     setLoading(true);
-    let q = supabase.from("orders").select("*").order("created_at", { ascending: false });
-    if (filter !== "all") q = q.eq("status", filter);
-    const { data, error } = await q;
-    if (error) toast.error(error.message);
-    setOrders((data as Order[] | null) ?? []);
+    try {
+      const url = filter !== "all" ? `/api/orders?status=${filter}` : "/api/orders?all=true";
+      const res = await fetch(url);
+      const data = await res.json();
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (e) {
+      toast.error("Failed to load orders");
+    }
     setLoading(false);
   }
 
@@ -60,15 +62,28 @@ function AdminOrders() {
 
   async function loadItems(orderId: string) {
     if (items[orderId]) return;
-    const { data } = await supabase.from("order_items").select("*").eq("order_id", orderId);
-    setItems((s) => ({ ...s, [orderId]: (data as OrderItem[] | null) ?? [] }));
+    try {
+      const res = await fetch(`/api/order-items?order_id=${orderId}`);
+      const data = await res.json();
+      setItems((s) => ({ ...s, [orderId]: Array.isArray(data) ? data : [] }));
+    } catch (e) {
+      setItems((s) => ({ ...s, [orderId]: [] }));
+    }
   }
 
   async function updateStatus(id: string, status: Status) {
-    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Status updated");
-    refresh();
+    try {
+      const res = await fetch("/api/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      toast.success("Status updated");
+      refresh();
+    } catch (e) {
+      toast.error("Failed to update status");
+    }
   }
 
   return (

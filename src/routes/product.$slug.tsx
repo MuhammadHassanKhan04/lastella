@@ -7,33 +7,37 @@ import { useI18n } from "@/lib/i18n";
 import { useStore, type Product } from "@/lib/store";
 import { formatPrice } from "@/lib/currency";
 import { ProductCard } from "@/components/ProductCard";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("slug", params.slug)
-      .eq("active", true)
-      .single();
+    const res = await fetch(`https://${process.env.VERCEL_URL || ""}/api/products?slug=${encodeURIComponent(params.slug)}`).catch(() => null)
+      || await fetch(`/api/products?slug=${encodeURIComponent(params.slug)}`).catch(() => null);
+    
+    let data = null;
+    if (res && res.ok) {
+      const json = await res.json();
+      data = Array.isArray(json) ? json[0] : json;
+    }
 
-    if (error || !data) throw notFound();
+    if (!data) throw notFound();
 
     const product = {
-      id: data.id,
+      id: data.id || data._id,
       slug: data.slug,
       name: { en: data.name_en, ar: data.name_ar ?? "" },
       category: data.category,
       price: Number(data.price),
       oldPrice: data.old_price ? Number(data.old_price) : undefined,
       image: data.image,
-      rating: Number(data.rating),
-      reviews: Number(data.reviews),
+      rating: Number(data.rating || 0),
+      reviews: Number(data.reviews || 0),
       badge: data.badge || undefined,
-      stock: Number(data.stock),
-      description: data.description_en || undefined
-    } as Product & { description?: string };
+      stock: Number(data.stock || 0),
+      description: data.description_en || undefined,
+      images: data.images || [],
+      sizes: data.sizes || [],
+      colors: data.colors || []
+    } as Product & { description?: string; images?: string[]; sizes?: string[]; colors?: string[] };
 
     return { product };
   },

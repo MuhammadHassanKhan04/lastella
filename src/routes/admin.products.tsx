@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 
 export const Route = createFileRoute("/admin/products")({
@@ -40,9 +39,13 @@ function AdminProducts() {
 
   async function refresh() {
     setLoading(true);
-    const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
-    setRows((data as Row[] | null) ?? []);
+    try {
+      const res = await fetch("/api/products?all=true");
+      const data = await res.json();
+      setRows(Array.isArray(data) ? data : []);
+    } catch (e) {
+      toast.error("Failed to load products");
+    }
     setLoading(false);
   }
 
@@ -50,16 +53,28 @@ function AdminProducts() {
 
   async function remove(id: string) {
     if (!confirm("Delete this product?")) return;
-    const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Deleted");
-    refresh();
+    try {
+      const res = await fetch(`/api/products?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      toast.success("Deleted");
+      refresh();
+    } catch (e) {
+      toast.error("Failed to delete product");
+    }
   }
 
   async function toggleActive(row: Row) {
-    const { error } = await supabase.from("products").update({ active: !row.active }).eq("id", row.id);
-    if (error) return toast.error(error.message);
-    refresh();
+    try {
+      const res = await fetch("/api/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: row.id, active: !row.active }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      refresh();
+    } catch (e) {
+      toast.error("Failed to update");
+    }
   }
 
   return (
@@ -194,13 +209,14 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
     });
   };
 
-  async function uploadImage(file: File): Promise<string> {
-    const ext = file.name.split('.').pop();
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await supabase.storage.from('products').upload(filename, file, { upsert: true });
-    if (error) throw new Error(`Image upload failed: ${error.message}`);
-    const { data } = supabase.storage.from('products').getPublicUrl(filename);
-    return data.publicUrl;
+  // Convert File to base64 for MongoDB storage
+  async function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -209,22 +225,22 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
     if (!imagePreview) { toast.error("Please upload a product image"); return; }
     setBusy(true);
     try {
-      // Upload main image if new file selected
+      // Use base64 for main image
       let mainImageUrl = initial?.image ?? imagePreview;
       if (imageFile) {
-        mainImageUrl = await uploadImage(imageFile);
+        mainImageUrl = await fileToBase64(imageFile);
       }
 
-      // Upload new gallery images
-      const existingUrls = galleryPreviews.filter(p => p.startsWith('http'));
-      const newGalleryUrls: string[] = [];
+      // Convert new gallery images to base64
+      const existingUrls = galleryPreviews.filter(p => p.startsWith('data:') || p.startsWith('http'));
+      const newGalleryBase64: string[] = [];
       for (const file of galleryFiles) {
-        const url = await uploadImage(file);
-        newGalleryUrls.push(url);
+        const b64 = await fileToBase64(file);
+        newGalleryBase64.push(b64);
       }
-      const allGalleryUrls = [...existingUrls, ...newGalleryUrls];
+      const allGalleryUrls = [...existingUrls.filter(p => !galleryFiles.some(f => f.name === p)), ...newGalleryBase64];
 
-      const payload = {
+      const payload: any = {
         slug: String(fd.get("slug")).trim(),
         name_en: String(fd.get("name_en")).trim(),
         name_ar: String(fd.get("name_ar") || "").trim() || null,
@@ -242,12 +258,20 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
       };
 
       if (initial) {
-        const { error } = await supabase.from("products").update(payload).eq("id", initial.id);
-        if (error) throw error;
+        const res = await fetch("/api/products", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: initial.id, ...payload }),
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Update failed"); }
         toast.success("Updated successfully");
       } else {
-        const { error } = await supabase.from("products").insert(payload);
-        if (error) throw error;
+        const res = await fetch("/api/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Save failed"); }
         toast.success("Created successfully");
       }
       onSaved();

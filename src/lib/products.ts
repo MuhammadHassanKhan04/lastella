@@ -1,36 +1,34 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import type { Product } from "./store";
+
+function mapProduct(d: any): Product {
+  return {
+    id: d.id || d._id,
+    slug: d.slug,
+    name: { en: d.name_en, ar: d.name_ar ?? "" },
+    category: d.category,
+    price: Number(d.price),
+    oldPrice: d.old_price ? Number(d.old_price) : undefined,
+    image: d.image,
+    rating: Number(d.rating || 0),
+    reviews: Number(d.reviews || 0),
+    badge: d.badge || undefined,
+    stock: Number(d.stock || 0),
+    description: d.description_en || undefined,
+    images: d.images || [],
+    sizes: d.sizes || [],
+    colors: d.colors || [],
+  };
+}
 
 export function useProducts() {
   return useQuery({
     queryKey: ["products"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("active", true)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      return (data || []).map((d: any) => ({
-        id: d.id,
-        slug: d.slug,
-        name: { en: d.name_en, ar: d.name_ar ?? "" },
-        category: d.category,
-        price: Number(d.price),
-        oldPrice: d.old_price ? Number(d.old_price) : undefined,
-        image: d.image,
-        rating: Number(d.rating),
-        reviews: Number(d.reviews),
-        badge: d.badge || undefined,
-        stock: Number(d.stock),
-        description: d.description_en || undefined,
-        images: d.images || [],
-        sizes: d.sizes || [],
-        colors: d.colors || []
-      })) as Product[];
+      const res = await fetch("/api/products");
+      if (!res.ok) throw new Error("Failed to fetch products");
+      const data = await res.json();
+      return (data as any[]).map(mapProduct) as Product[];
     },
   });
 }
@@ -39,33 +37,13 @@ export function useProduct(slug: string) {
   return useQuery({
     queryKey: ["product", slug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("slug", slug)
-        .eq("active", true)
-        .single();
-
-      if (error) throw error;
-
-      return {
-        id: data.id,
-        slug: data.slug,
-        name: { en: data.name_en, ar: data.name_ar ?? "" },
-        category: data.category,
-        price: Number(data.price),
-        oldPrice: data.old_price ? Number(data.old_price) : undefined,
-        image: data.image,
-        rating: Number(data.rating),
-        reviews: Number(data.reviews),
-        badge: data.badge || undefined,
-        stock: Number(data.stock),
-        description: data.description_en || undefined,
-        images: data.images || [],
-        sizes: data.sizes || [],
-        colors: data.colors || []
-      } as Product & { description?: string };
+      const res = await fetch(`/api/products?slug=${encodeURIComponent(slug)}`);
+      if (!res.ok) throw new Error("Failed to fetch product");
+      const data = await res.json();
+      const product = Array.isArray(data) ? data[0] : data;
+      if (!product) throw new Error("Product not found");
+      return mapProduct(product) as Product & { description?: string };
     },
-    enabled: !!slug
+    enabled: !!slug,
   });
 }
