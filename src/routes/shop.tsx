@@ -24,7 +24,7 @@ function Shop() {
   const { t, lang } = useI18n();
   const [cat, setCat] = useState<(typeof cats)[number]>("all");
   const [sort, setSort] = useState<(typeof sorts)[number]>("newest");
-  const [max, setMax] = useState(150000);
+  const [max, setMax] = useState(5000);
   
   const { data: products = [], isLoading } = useProducts();
 
@@ -65,9 +65,9 @@ function Shop() {
           </div>
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] mb-4">{lang === "ar" ? "السعر" : "Price"}</h3>
-            <input type="range" min={10000} max={150000} step={5000} value={max} onChange={(e) => setMax(Number(e.target.value))} className="w-full accent-primary" />
+            <input type="range" min={50} max={5000} step={50} value={max} onChange={(e) => setMax(Number(e.target.value))} className="w-full accent-primary" />
             <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>Rs. 10,000</span><span>Rs. {max.toLocaleString()}</span>
+              <span>SAR 50</span><span>SAR {max.toLocaleString()}</span>
             </div>
           </div>
         </aside>

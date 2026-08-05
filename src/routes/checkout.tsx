@@ -18,8 +18,8 @@ function Checkout() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { cart, cartTotal } = useStore();
-  const shipping = cartTotal > 10000 ? 0 : 500;
-  const tax = cartTotal * 0.05;
+  const shipping = cartTotal > 200 ? 0 : 25;
+  const tax = cartTotal * 0.15; // Saudi VAT 15%
   const grand = cartTotal + shipping + tax;
   const [submitting, setSubmitting] = useState(false);
   const [payment, setPayment] = useState<"cod" | "bank">("cod");
@@ -42,7 +42,7 @@ function Checkout() {
           address: String(fd.get("address")),
           city: String(fd.get("city")),
           postal_code: String(fd.get("postal_code") || ""),
-          country: "Pakistan",
+          country: "Saudi Arabia",
           subtotal: cartTotal,
           shipping,
           tax,
@@ -82,7 +82,7 @@ function Checkout() {
         <div className="space-y-8">
           <Section title={lang === "ar" ? "معلومات التواصل" : "Contact Information"}>
             <Input name="email" placeholder="Email address" type="email" defaultValue={user?.email ?? ""} required />
-            <Input name="phone" placeholder={lang === "ar" ? "رقم الهاتف" : "Phone number (e.g. 03XX-XXXXXXX)"} required />
+            <Input name="phone" placeholder={lang === "ar" ? "رقم الهاتف" : "Phone number (e.g. +966 5X XXX XXXX)"} required />
           </Section>
           <Section title={lang === "ar" ? "عنوان الشحن" : "Shipping Address"}>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -91,9 +91,9 @@ function Checkout() {
             </div>
             <Input name="address" placeholder={lang === "ar" ? "العنوان" : "Street address"} required />
             <div className="grid sm:grid-cols-3 gap-3">
-              <Input name="city" placeholder={lang === "ar" ? "المدينة" : "City (e.g. Karachi)"} required />
+              <Input name="city" placeholder={lang === "ar" ? "المدينة" : "City (e.g. Riyadh, Jeddah)"} required />
               <Input name="postal_code" placeholder={lang === "ar" ? "الرمز البريدي" : "Postal code"} />
-              <Input name="country" placeholder="Country" defaultValue="Pakistan" readOnly />
+              <Input name="country" placeholder="Country" defaultValue="Saudi Arabia" readOnly />
             </div>
             <textarea name="notes" placeholder={lang === "ar" ? "ملاحظات (اختياري)" : "Order notes (optional)"} className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors min-h-[80px]" />
           </Section>

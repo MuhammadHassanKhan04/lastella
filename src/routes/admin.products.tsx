@@ -319,8 +319,8 @@ function ProductForm({ initial, onClose, onSaved }: { initial: Row | null; onClo
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
-          <Field label="Price (Rs.)"><input name="price" type="number" step="1" min="0" defaultValue={initial?.price} required className={inputCls} /></Field>
-          <Field label="Old Price (Rs.)"><input name="old_price" type="number" step="1" min="0" defaultValue={initial?.old_price ?? ""} placeholder="Optional discount" className={inputCls} /></Field>
+          <Field label="Price (SAR)"><input name="price" type="number" step="0.01" min="0" defaultValue={initial?.price} required className={inputCls} /></Field>
+          <Field label="Old Price (SAR)"><input name="old_price" type="number" step="0.01" min="0" defaultValue={initial?.old_price ?? ""} placeholder="Optional discount" className={inputCls} /></Field>
           <Field label="Stock (Quantity)"><input name="stock" type="number" min="0" defaultValue={initial?.stock ?? 0} className={inputCls} /></Field>
           <Field label="Badge (Highlight)">
             <select name="badge" defaultValue={initial?.badge ?? ""} className={inputCls}>
