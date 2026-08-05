@@ -35,9 +35,7 @@ export function Header() {
         scrolled ? "glass shadow-[0_2px_20px_-8px_rgba(200,100,140,0.15)]" : "bg-background/40 backdrop-blur-md"
       }`}
     >
-      <div className="border-b border-border/60 bg-primary/5 text-center text-[11px] uppercase tracking-[0.2em] text-muted-foreground py-2">
-        {t("common.free_shipping")} · {t("common.lifetime")} · {t("common.returns")}
-      </div>
+
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between gap-4">
           <div className="flex items-center gap-3 lg:gap-8 min-w-0">

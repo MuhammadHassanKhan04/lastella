@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Hero } from "@/components/Hero";
 import { Categories } from "@/components/Categories";
 import { ProductGrid } from "@/components/ProductGrid";
-import { FlashSale } from "@/components/FlashSale";
 import { Testimonials } from "@/components/Testimonials";
 import { useProducts } from "@/lib/products";
 import { useI18n } from "@/lib/i18n";
@@ -26,7 +25,6 @@ function Index() {
         products={products.slice(0, 4)}
         isLoading={isLoading}
       />
-      <FlashSale />
       <ProductGrid
         title={t("section.bestsellers.title")}
         products={products.slice(4, 8)}
