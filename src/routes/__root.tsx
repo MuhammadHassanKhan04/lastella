@@ -34,17 +34,6 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
-
-  // Auto-recovery: If user has an old cached tab and a new Vercel commit deployed, auto-reload to fetch fresh JS bundles
-  useEffect(() => {
-    if (
-      error?.message?.includes("dynamically imported module") ||
-      error?.message?.includes("Importing a module script failed") ||
-      error?.message?.includes("assets/routes")
-    ) {
-      window.location.reload();
-    }
-  }, [error]);
   
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
@@ -58,15 +47,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         )}
         <button
           onClick={() => {
-            if (
-              error?.message?.includes("dynamically imported module") ||
-              error?.message?.includes("Importing a module script failed")
-            ) {
-              window.location.reload();
-            } else {
-              router.invalidate();
-              reset();
-            }
+            window.location.reload();
           }}
           className="mt-6 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-rose-deep transition-colors"
         >
@@ -118,21 +99,6 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-
-  useEffect(() => {
-    const handleRejection = (event: PromiseRejectionEvent) => {
-      const msg = String(event?.reason?.message || event?.reason || "");
-      if (
-        msg.includes("dynamically imported module") ||
-        msg.includes("Importing a module script failed") ||
-        msg.includes("assets/routes")
-      ) {
-        window.location.reload();
-      }
-    };
-    window.addEventListener("unhandledrejection", handleRejection);
-    return () => window.removeEventListener("unhandledrejection", handleRejection);
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
