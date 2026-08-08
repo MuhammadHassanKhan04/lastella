@@ -1,6 +1,6 @@
 import { MongoClient } from "mongodb";
 
-const MONGODB_URI = "mongodb+srv://ikoteksolutions_db_user:xqO0gg9dM5cpIoL0@cluster0.fbfpsbf.mongodb.net";
+const MONGODB_URI = "mongodb+srv://ikoteksolutions_db_user:xqO0gg9dM5cpIoL0@cluster0.fbfpsbf.mongodb.net/?retryWrites=true&w=majority";
 const DB_NAME = "lastella";
 
 const sampleProducts = [
@@ -176,7 +176,10 @@ const sampleProducts = [
 ];
 
 async function run() {
-  const client = new MongoClient(MONGODB_URI);
+  const client = new MongoClient(MONGODB_URI, {
+    tlsInsecure: true,
+    serverSelectionTimeoutMS: 5000,
+  });
   try {
     await client.connect();
     console.log("Connected to MongoDB Atlas!");

@@ -1,6 +1,6 @@
 const { MongoClient } = require("mongodb");
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://ikoteksolutions_db_user:xqO0gg9dM5cpIoL0@cluster0.fbfpsbf.mongodb.net";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://ikoteksolutions_db_user:xqO0gg9dM5cpIoL0@cluster0.fbfpsbf.mongodb.net/?retryWrites=true&w=majority";
 const DB_NAME = "lastella";
 
 let client = null;
@@ -8,7 +8,10 @@ let db = null;
 
 async function getDb() {
   if (db) return db;
-  client = new MongoClient(MONGODB_URI);
+  client = new MongoClient(MONGODB_URI, {
+    tlsInsecure: true,
+    serverSelectionTimeoutMS: 5000,
+  });
   await client.connect();
   db = client.db(DB_NAME);
   return db;
