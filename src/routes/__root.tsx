@@ -36,10 +36,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="max-w-md text-center">
-        <h1 className="font-display text-2xl">Something went wrong</h1>
+        <h1 className="font-display text-2xl font-semibold">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">Try refreshing the page.</p>
+        {error?.message && (
+          <div className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-mono text-start break-words max-h-36 overflow-auto border border-destructive/20">
+            {error.message}
+          </div>
+        )}
         <button
           onClick={() => { router.invalidate(); reset(); }}
           className="mt-6 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-rose-deep transition-colors"

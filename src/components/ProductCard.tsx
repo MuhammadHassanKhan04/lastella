@@ -8,8 +8,21 @@ import { toast } from "sonner";
 export function ProductCard({ product }: { product: Product }) {
   const { t, lang } = useI18n();
   const { addToCart, toggleWishlist, wishlist } = useStore();
-  const wished = wishlist.includes(product.id);
-  const discount = product.oldPrice ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100) : 0;
+
+  if (!product) return null;
+
+  const wished = Array.isArray(wishlist) && wishlist.includes(product.id);
+  const price = Number(product.price || 0);
+  const oldPrice = product.oldPrice ? Number(product.oldPrice) : null;
+  const discount = oldPrice && oldPrice > price ? Math.round(((oldPrice - price) / oldPrice) * 100) : 0;
+  
+  const nameText = typeof product.name === "object" && product.name !== null
+    ? (product.name[lang] || product.name.en || product.name.ar || "")
+    : String(product.name || "");
+
+  const ratingVal = typeof product.rating === "number" ? product.rating : Number(product.rating || 0);
+  const reviewsVal = typeof product.reviews === "number" ? product.reviews : Number(product.reviews || 0);
+
   const badgeLabel =
     product.badge === "new" ? t("product.new") :
     product.badge === "sale" ? t("product.sale") :
@@ -17,11 +30,11 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <div className="group relative">
-      <Link to="/product/$slug" params={{ slug: product.slug }} className="block">
+      <Link to="/product/$slug" params={{ slug: product.slug || "" }} className="block">
         <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-secondary">
           <img
-            src={product.image}
-            alt={product.name[lang]}
+            src={product.image || "/favicon.png"}
+            alt={nameText}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
           />
@@ -58,7 +71,7 @@ export function ProductCard({ product }: { product: Product }) {
           {/* Add to cart overlay */}
           <div className="absolute inset-x-3 bottom-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
             <button
-              onClick={(e) => { e.preventDefault(); addToCart(product); toast.success(`${product.name[lang]} added to cart`); }}
+              onClick={(e) => { e.preventDefault(); addToCart(product); toast.success(`${nameText} added to cart`); }}
               className="w-full glass-dark rounded-full py-2.5 text-xs font-semibold uppercase tracking-[0.15em] flex items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all"
             >
               <ShoppingBag className="h-3.5 w-3.5" />
@@ -69,16 +82,16 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="mt-3 space-y-1">
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <Star className="h-3 w-3 fill-primary text-primary" />
-            <span>{product.rating.toFixed(1)}</span>
+            <span>{ratingVal.toFixed(1)}</span>
             <span>·</span>
-            <span>{product.reviews}</span>
+            <span>{reviewsVal}</span>
           </div>
           <h3 className="font-display text-lg leading-snug text-foreground group-hover:text-primary transition-colors">
-            {product.name[lang]}
+            {nameText}
           </h3>
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-base font-semibold">{formatPrice(product.price)}</span>
-            {product.oldPrice && <span className="text-sm text-muted-foreground line-through">{formatPrice(product.oldPrice)}</span>}
+            <span className="text-base font-semibold">{formatPrice(price)}</span>
+            {oldPrice && oldPrice > 0 && <span className="text-sm text-muted-foreground line-through">{formatPrice(oldPrice)}</span>}
           </div>
         </div>
       </Link>
