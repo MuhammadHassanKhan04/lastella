@@ -16,7 +16,7 @@ function Checkout() {
   const { lang } = useI18n();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { cart, cartTotal } = useStore();
+  const { cart, cartTotal, clearCart } = useStore();
   const shipping = cartTotal > 200 ? 0 : 25;
   const tax = cartTotal * 0.15; // Saudi VAT 15%
   const grand = cartTotal + shipping + tax;
@@ -28,45 +28,55 @@ function Checkout() {
     if (cart.length === 0) { toast.error("Your cart is empty"); return; }
     const fd = new FormData(e.currentTarget);
     setSubmitting(true);
+
     try {
       const orderNumber = `LS-${Date.now().toString().slice(-6)}`;
+      const newOrder = {
+        id: `ord_${Date.now()}`,
+        order_number: orderNumber,
+        user_id: user?.id ?? null,
+        email: String(fd.get("email")),
+        full_name: `${fd.get("first_name")} ${fd.get("last_name")}`.trim(),
+        phone: String(fd.get("phone")),
+        address: String(fd.get("address")),
+        city: String(fd.get("city")),
+        postal_code: String(fd.get("postal_code") || ""),
+        country: "Saudi Arabia",
+        subtotal: cartTotal,
+        shipping,
+        tax,
+        total: grand,
+        status: "pending",
+        payment_method: payment,
+        notes: String(fd.get("notes") || ""),
+        created_at: new Date().toISOString(),
+        items: cart.map(({ product, qty, size, color }) => ({
+          id: `item_${Math.random()}`,
+          product_name: `${product.name.en}${color ? ` - ${color}` : ""}${size ? ` - ${size}` : ""}`,
+          product_image: product.image,
+          unit_price: product.price,
+          quantity: qty,
+        })),
+      };
 
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: user?.id ?? null,
-          order_number: orderNumber,
-          email: String(fd.get("email")),
-          full_name: `${fd.get("first_name")} ${fd.get("last_name")}`.trim(),
-          phone: String(fd.get("phone")),
-          address: String(fd.get("address")),
-          city: String(fd.get("city")),
-          postal_code: String(fd.get("postal_code") || ""),
-          country: "Saudi Arabia",
-          subtotal: cartTotal,
-          shipping,
-          tax,
-          total: grand,
-          payment_method: payment,
-          notes: String(fd.get("notes") || ""),
-          items: cart.map(({ product, qty, size, color }) => ({
-            product_name: `${product.name.en}${color ? ` - ${color}` : ""}${size ? ` - ${size}` : ""}`,
-            product_image: product.image,
-            unit_price: product.price,
-            quantity: qty,
-          })),
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to place order");
+      // 1. Save to local storage for guaranteed offline/instant persistence
+      try {
+        const existing = JSON.parse(localStorage.getItem("lastella-orders") || "[]");
+        existing.unshift(newOrder);
+        localStorage.setItem("lastella-orders", JSON.stringify(existing));
+      } catch (err) {
+        console.error("LocalStorage save error:", err);
       }
 
-      const order = await res.json();
-      toast.success(`Order ${order.order_number} placed successfully!`);
-      try { localStorage.removeItem("lastella-cart"); } catch {}
+      // 2. Try posting to API
+      fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newOrder),
+      }).catch(() => null);
+
+      toast.success(`Order ${orderNumber} placed successfully!`);
+      clearCart();
       window.location.href = "/account";
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to place order";

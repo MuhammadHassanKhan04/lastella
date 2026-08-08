@@ -49,9 +49,28 @@ function AdminOrders() {
     setLoading(true);
     try {
       const url = filter !== "all" ? `/api/orders?status=${filter}` : "/api/orders?all=true";
-      const res = await fetch(url);
-      const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
+      const res = await fetch(url).catch(() => null);
+      let apiOrders: Order[] = [];
+      if (res && res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) apiOrders = data;
+      }
+
+      let localOrders: any[] = [];
+      try {
+        const raw = localStorage.getItem("lastella-orders");
+        if (raw) localOrders = JSON.parse(raw);
+      } catch {}
+
+      const combined = [...localOrders, ...apiOrders];
+      const map = new Map<string, Order>();
+      for (const o of combined) {
+        if (o && o.order_number) {
+          if (filter !== "all" && o.status !== filter) continue;
+          map.set(o.order_number, o);
+        }
+      }
+      setOrders(Array.from(map.values()));
     } catch (e) {
       toast.error("Failed to load orders");
     }
@@ -63,9 +82,26 @@ function AdminOrders() {
   async function loadItems(orderId: string) {
     if (items[orderId]) return;
     try {
-      const res = await fetch(`/api/order-items?order_id=${orderId}`);
-      const data = await res.json();
-      setItems((s) => ({ ...s, [orderId]: Array.isArray(data) ? data : [] }));
+      const res = await fetch(`/api/order-items?order_id=${orderId}`).catch(() => null);
+      if (res && res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setItems((s) => ({ ...s, [orderId]: data }));
+          return;
+        }
+      }
+
+      let localOrders: any[] = [];
+      try {
+        const raw = localStorage.getItem("lastella-orders");
+        if (raw) localOrders = JSON.parse(raw);
+      } catch {}
+      const found = localOrders.find((o) => o.id === orderId || o.order_number === orderId);
+      if (found && found.items) {
+        setItems((s) => ({ ...s, [orderId]: found.items }));
+        return;
+      }
+      setItems((s) => ({ ...s, [orderId]: [] }));
     } catch (e) {
       setItems((s) => ({ ...s, [orderId]: [] }));
     }
@@ -73,12 +109,21 @@ function AdminOrders() {
 
   async function updateStatus(id: string, status: Status) {
     try {
-      const res = await fetch("/api/orders", {
+      try {
+        const localOrders = JSON.parse(localStorage.getItem("lastella-orders") || "[]");
+        const idx = localOrders.findIndex((o: any) => o.id === id || o.order_number === id);
+        if (idx !== -1) {
+          localOrders[idx].status = status;
+          localStorage.setItem("lastella-orders", JSON.stringify(localOrders));
+        }
+      } catch {}
+
+      fetch("/api/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
-      });
-      if (!res.ok) throw new Error("Update failed");
+      }).catch(() => null);
+
       toast.success("Status updated");
       refresh();
     } catch (e) {

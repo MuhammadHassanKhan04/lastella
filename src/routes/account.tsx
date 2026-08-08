@@ -32,10 +32,30 @@ function Dashboard({ signOut, isAdmin, email }: { signOut: () => Promise<void>; 
   const [orders, setOrders] = useState<OrderRow[]>([]);
 
   useEffect(() => {
-    fetch("/api/orders?all=true")
-      .then((r) => r.json())
-      .then((data) => setOrders(Array.isArray(data) ? data : []))
-      .catch(() => {});
+    async function loadUserOrders() {
+      let apiOrders: OrderRow[] = [];
+      try {
+        const r = await fetch("/api/orders?all=true").catch(() => null);
+        if (r && r.ok) {
+          const data = await r.json();
+          if (Array.isArray(data)) apiOrders = data;
+        }
+      } catch {}
+
+      let localOrders: OrderRow[] = [];
+      try {
+        const raw = localStorage.getItem("lastella-orders");
+        if (raw) localOrders = JSON.parse(raw);
+      } catch {}
+
+      const combined = [...localOrders, ...apiOrders];
+      const map = new Map<string, OrderRow>();
+      for (const o of combined) {
+        if (o && o.order_number) map.set(o.order_number, o);
+      }
+      setOrders(Array.from(map.values()));
+    }
+    loadUserOrders();
   }, []);
 
   return (

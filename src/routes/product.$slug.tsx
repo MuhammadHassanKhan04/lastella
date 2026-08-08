@@ -8,36 +8,51 @@ import { useStore, type Product } from "@/lib/store";
 import { formatPrice } from "@/lib/currency";
 import { ProductCard } from "@/components/ProductCard";
 
+import { FALLBACK_PRODUCTS } from "@/lib/products";
+
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
-    const res = await fetch(`https://${process.env.VERCEL_URL || ""}/api/products?slug=${encodeURIComponent(params.slug)}`).catch(() => null)
-      || await fetch(`/api/products?slug=${encodeURIComponent(params.slug)}`).catch(() => null);
-    
-    let data = null;
-    if (res && res.ok) {
-      const json = await res.json();
-      data = Array.isArray(json) ? json[0] : json;
+    let product: (Product & { description?: string; images?: string[]; sizes?: string[]; colors?: string[] }) | null = null;
+
+    try {
+      const res = await fetch(`/api/products?slug=${encodeURIComponent(params.slug)}`).catch(() => null);
+      if (res && res.ok) {
+        const data = await res.json();
+        const raw = Array.isArray(data) ? data[0] : data;
+        if (raw) {
+          product = {
+            id: raw.id || raw._id,
+            slug: raw.slug,
+            name: { en: raw.name_en, ar: raw.name_ar ?? "" },
+            category: raw.category,
+            price: Number(raw.price),
+            oldPrice: raw.old_price ? Number(raw.old_price) : undefined,
+            image: raw.image,
+            rating: Number(raw.rating || 0),
+            reviews: Number(raw.reviews || 0),
+            badge: raw.badge || undefined,
+            stock: Number(raw.stock || 0),
+            description: raw.description_en || undefined,
+            images: raw.images?.length ? raw.images : [raw.image],
+            sizes: raw.sizes || [],
+            colors: raw.colors || []
+          };
+        }
+      }
+    } catch {}
+
+    if (!product) {
+      const fb = FALLBACK_PRODUCTS.find((p) => p.slug === params.slug);
+      if (fb) {
+        product = {
+          ...fb,
+          description: fb.description,
+          images: fb.images?.length ? fb.images : [fb.image],
+        };
+      }
     }
 
-    if (!data) throw notFound();
-
-    const product = {
-      id: data.id || data._id,
-      slug: data.slug,
-      name: { en: data.name_en, ar: data.name_ar ?? "" },
-      category: data.category,
-      price: Number(data.price),
-      oldPrice: data.old_price ? Number(data.old_price) : undefined,
-      image: data.image,
-      rating: Number(data.rating || 0),
-      reviews: Number(data.reviews || 0),
-      badge: data.badge || undefined,
-      stock: Number(data.stock || 0),
-      description: data.description_en || undefined,
-      images: data.images || [],
-      sizes: data.sizes || [],
-      colors: data.colors || []
-    } as Product & { description?: string; images?: string[]; sizes?: string[]; colors?: string[] };
+    if (!product) throw notFound();
 
     return { product };
   },
