@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
 
@@ -36,6 +36,7 @@ function AdminProducts() {
   const [editing, setEditing] = useState<Row | null>(null);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   async function refresh() {
     setLoading(true);
@@ -77,13 +78,53 @@ function AdminProducts() {
     }
   }
 
+  const filteredRows = rows.filter((r) => {
+    if (!search.trim()) return true;
+    const query = search.toLowerCase().trim();
+    return (
+      (r.name_en && r.name_en.toLowerCase().includes(query)) ||
+      (r.name_ar && r.name_ar.toLowerCase().includes(query)) ||
+      (r.slug && r.slug.toLowerCase().includes(query)) ||
+      (r.category && r.category.toLowerCase().includes(query)) ||
+      (r.badge && r.badge.toLowerCase().includes(query))
+    );
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="font-display text-3xl">Products</h2>
-        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold uppercase tracking-wider hover:bg-rose-deep">
+        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold uppercase tracking-wider hover:bg-rose-deep transition-all">
           <Plus className="h-4 w-4" /> New Product
         </button>
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search products by name, slug, or category..."
+            className="w-full rounded-full border border-border bg-background/50 backdrop-blur pl-10 pr-9 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        {search && (
+          <span className="text-xs text-muted-foreground">
+            {filteredRows.length} {filteredRows.length === 1 ? "result" : "results"} found
+          </span>
+        )}
       </div>
 
       <div className="glass rounded-2xl overflow-hidden">
@@ -103,16 +144,17 @@ function AdminProducts() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-border/60 hover:bg-secondary/30">
+                {filteredRows.map((r) => (
+                  <tr key={r.id} className="border-b border-border/60 hover:bg-secondary/30 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-lg bg-secondary overflow-hidden shrink-0">
+                        <div className="h-12 w-12 rounded-lg bg-secondary overflow-hidden shrink-0 border border-border/40">
                           {r.image && <img src={r.image} alt="" className="h-full w-full object-cover" />}
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium truncate">{r.name_en}</p>
-                          <p className="text-xs text-muted-foreground">{r.slug}</p>
+                          {r.name_ar && <p className="text-xs text-muted-foreground truncate" dir="rtl">{r.name_ar}</p>}
+                          <p className="text-[11px] text-muted-foreground/70 font-mono">{r.slug}</p>
                         </div>
                       </div>
                     </td>
@@ -135,7 +177,13 @@ function AdminProducts() {
                     </td>
                   </tr>
                 ))}
-                {rows.length === 0 && <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">No products yet.</td></tr>}
+                {filteredRows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-10 text-center text-muted-foreground">
+                      {search ? `No products matching "${search}"` : "No products yet."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
