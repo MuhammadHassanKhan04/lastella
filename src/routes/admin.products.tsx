@@ -90,13 +90,40 @@ function AdminProducts() {
     );
   });
 
+  async function seedDemoProducts() {
+    if (!confirm("Add 25 curated luxury demo products to your database?")) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/seed");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Seeding failed");
+      toast.success(data.message || "25 Demo products loaded!");
+      refresh();
+    } catch (e) {
+      toast.error("Failed to seed products");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="font-display text-3xl">Products</h2>
-        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold uppercase tracking-wider hover:bg-rose-deep transition-all">
-          <Plus className="h-4 w-4" /> New Product
-        </button>
+        <div>
+          <h2 className="font-display text-3xl">Products</h2>
+          <p className="text-xs text-muted-foreground mt-1">Manage your store catalog ({rows.length} total)</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={seedDemoProducts}
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 text-xs font-semibold uppercase tracking-wider hover:bg-secondary transition-all"
+          >
+            + Add 25 Demo Products
+          </button>
+          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold uppercase tracking-wider hover:bg-rose-deep transition-all">
+            <Plus className="h-4 w-4" /> New Product
+          </button>
+        </div>
       </div>
 
       {/* Search & Filter Bar */}
