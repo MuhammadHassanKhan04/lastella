@@ -12,7 +12,8 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { t } = useI18n();
-  const { data: products = [], isLoading } = useProducts();
+  const { data: rawProducts, isLoading } = useProducts();
+  const products = Array.isArray(rawProducts) ? rawProducts : [];
 
   return (
     <>
