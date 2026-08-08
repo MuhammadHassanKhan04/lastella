@@ -47,11 +47,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         )}
         <button
           onClick={() => {
-            window.location.reload();
+            window.location.href = window.location.href;
           }}
           className="mt-6 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-rose-deep transition-colors"
         >
-          Try again
+          Reload Page
         </button>
       </div>
     </div>
