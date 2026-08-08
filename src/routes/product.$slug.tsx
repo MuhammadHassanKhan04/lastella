@@ -1,14 +1,12 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
-import { Heart, Minus, Plus, ShoppingBag, Shield, Truck, RotateCcw, Star } from "lucide-react";
+import { Heart, Minus, Plus, ShoppingBag, Shield, Truck, RotateCcw, Star, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useProducts } from "@/lib/products";
+import { useProducts, FALLBACK_PRODUCTS } from "@/lib/products";
 import { useI18n } from "@/lib/i18n";
 import { useStore, type Product } from "@/lib/store";
 import { formatPrice } from "@/lib/currency";
 import { ProductCard } from "@/components/ProductCard";
-
-import { FALLBACK_PRODUCTS } from "@/lib/products";
 
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
@@ -83,7 +81,27 @@ function ProductPage() {
   const [selectedSize, setSelectedSize] = useState<string | undefined>(product.sizes?.[0]);
   const [activeImage, setActiveImage] = useState<string>(product.image);
 
+  // Matching Ring Bundle State for Necklaces & Bracelets (Bangles)
+  const isJewelrySet = product.category === "necklace" || product.category === "bracelet";
+  const matchingRing = allProducts.find((p) => p.category === "ring") || FALLBACK_PRODUCTS.find((p) => p.category === "ring");
+  const [includeMatchingRing, setIncludeMatchingRing] = useState(true);
+  const [matchingRingSize, setMatchingRingSize] = useState<string>("US 7");
+
   const gallery = [product.image, ...(product.images || [])].filter(Boolean);
+
+  const handleAddToCart = () => {
+    addToCart(product, qty, selectedSize, selectedColor);
+    if (isJewelrySet && includeMatchingRing && matchingRing) {
+      addToCart(matchingRing, 1, matchingRingSize, selectedColor);
+      toast.success(
+        lang === "ar"
+          ? `تمت إضافة ${product.name[lang] || product.name.en} والخاتم المطابق (مقاس: ${matchingRingSize}) للسلة!`
+          : `Added ${product.name.en} and Matching Ring (Size: ${matchingRingSize}) to cart!`
+      );
+    } else {
+      toast.success(`${product.name[lang] || product.name.en} added to cart`);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
@@ -125,7 +143,7 @@ function ProductPage() {
           </div>
 
           <p className="mt-6 text-foreground/75 leading-relaxed">
-            {product.description || "Handcrafted with 18k rose-gold plating and ethically-sourced stones. Each piece is finished with a signature Lastella hallmark and packaged in our pink velvet keepsake case — designed to be worn every day, treasured for a lifetime."}
+            {product.description || "Handcrafted with 18k rose-gold plating and ethically-sourced stones. Each piece is finished with a signature Lastella hallmark and packaged in our velvet keepsake case."}
           </p>
 
           <div className="mt-8 space-y-4">
@@ -141,15 +159,76 @@ function ProductPage() {
             )}
             {product.sizes && product.sizes.length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3">Size</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3">{product.category === "bracelet" ? (lang === "ar" ? "مقاس السوار:" : "Bangle Size:") : (lang === "ar" ? "مقاس القلادة:" : "Necklace Size:")}</p>
                 <div className="flex gap-2 flex-wrap">
                   {product.sizes.map((s) => (
-                    <button key={s} onClick={() => setSelectedSize(s)} className={`h-11 min-w-11 px-3 rounded-full text-sm border transition-all ${selectedSize === s ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary"}`}>{s}</button>
+                    <button key={s} onClick={() => setSelectedSize(s)} className={`h-11 min-w-11 px-3 rounded-full text-sm border transition-all ${selectedSize === s ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border hover:border-primary"}`}>{s}</button>
                   ))}
                 </div>
               </div>
             )}
           </div>
+
+          {/* Matching Ring Bundle Section for Necklaces and Bangles */}
+          {isJewelrySet && matchingRing && (
+            <div className="mt-8 p-5 rounded-3xl border border-primary/30 bg-primary/5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="h-5 w-5 text-primary shrink-0 animate-pulse" />
+                  <div>
+                    <h4 className="font-semibold text-sm">
+                      {lang === "ar" ? "طقم الخاتم المطابق الفاخر 💍" : "Matching Ring Set Option 💍"}
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {lang === "ar" ? "أضيفي خاتماً مطابقاً بتصميم مميز واختاري مقاس الخاتم المستقل" : "Add a matching ring & select an independent ring size"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-background border border-border">
+                <div className="flex items-center gap-3">
+                  <img src={matchingRing.image} alt="" className="h-14 w-14 rounded-xl object-cover bg-secondary shrink-0" />
+                  <div>
+                    <p className="font-medium text-sm">{matchingRing.name[lang] || matchingRing.name.en}</p>
+                    <p className="text-xs text-primary font-semibold">{formatPrice(matchingRing.price)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                    {lang === "ar" ? "مقاس الخاتم (مستقل):" : "Ring Size (Independent):"}
+                  </label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(matchingRing.sizes?.length ? matchingRing.sizes : ["US 6", "US 7", "US 8"]).map((rs) => (
+                      <button
+                        key={rs}
+                        type="button"
+                        onClick={() => setMatchingRingSize(rs)}
+                        className={`px-3 py-1 text-xs rounded-lg border transition-all ${matchingRingSize === rs ? "border-primary bg-primary/10 text-primary font-semibold" : "border-border hover:border-primary"}`}
+                      >
+                        {rs}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 text-xs font-semibold cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={includeMatchingRing}
+                  onChange={(e) => setIncludeMatchingRing(e.target.checked)}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+                <span>
+                  {lang === "ar"
+                    ? `أضيفي الخاتم المطابق بالطقم (+ ${formatPrice(matchingRing.price)})`
+                    : `Include Matching Ring Bundle (+ ${formatPrice(matchingRing.price)})`}
+                </span>
+              </label>
+            </div>
+          )}
 
           <div className="mt-8 flex items-center gap-4">
             <div className="flex items-center rounded-full border border-border">
@@ -158,7 +237,7 @@ function ProductPage() {
               <button onClick={() => setQty(qty + 1)} className="p-3 hover:text-primary" aria-label="Increase"><Plus className="h-4 w-4" /></button>
             </div>
             <button
-              onClick={() => { addToCart(product, qty, selectedSize, selectedColor); toast.success(`${product.name[lang]} added to cart`); }}
+              onClick={handleAddToCart}
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground px-8 py-4 text-sm font-semibold uppercase tracking-[0.15em] luxury-shadow hover:bg-rose-deep transition-all"
             >
               <ShoppingBag className="h-4 w-4" /> {t("product.addToCart")}

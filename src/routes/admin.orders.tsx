@@ -175,11 +175,11 @@ function AdminOrders() {
                         <p className="text-muted-foreground">{o.phone}</p>
                         <p className="text-muted-foreground">{o.address}, {o.city}{o.postal_code ? ` – ${o.postal_code}` : ""}</p>
                         
-                        {/* Gift Packaging Box Status */}
+                        {/* Customized Packaging Box Status */}
                         <div className="pt-2">
                           {o.need_gift_box ? (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-600 text-xs font-semibold border border-rose-500/20">
-                              🎁 Needs Luxury Gift Box (صندوق هدايا فاخر)
+                              🎁 Needs Customized Box (صندوق تغليف مخصص)
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary text-muted-foreground text-xs font-medium border border-border/40">

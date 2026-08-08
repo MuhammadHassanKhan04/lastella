@@ -112,17 +112,17 @@ function Checkout() {
             <textarea name="notes" placeholder={lang === "ar" ? "ملاحظات الإهداء أو الشحن (اختياري)" : "Gift or shipping notes (optional)"} className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors min-h-[80px]" />
           </Section>
 
-          {/* Gift Packaging Box Selection */}
-          <Section title={lang === "ar" ? "خيارات التغليف (صندوق هدايا)" : "Gift Packaging Box Option"}>
+          {/* Customized Packaging Box Selection */}
+          <Section title={lang === "ar" ? "خيارات التغليف (صندوق مخصص)" : "Customized Packaging Box Option"}>
             <div className="glass rounded-2xl p-5 border border-primary/30 bg-primary/5 space-y-4">
               <div className="flex items-center gap-3">
                 <Gift className="h-6 w-6 text-primary shrink-0" />
                 <div>
                   <h4 className="font-semibold text-sm">
-                    {lang === "ar" ? "هل تحتاج لإضافة صندوق هدايا فاخر؟" : "Do you need a Luxury Gift Box?"}
+                    {lang === "ar" ? "هل تحتاج لإضافة صندوق التغليف المخصص؟" : "Do you need a Customized Luxury Packaging Box?"}
                   </h4>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {lang === "ar" ? "اختر خيار التغليف المناسب لطلبك" : "Select packaging option for your order"}
+                    {lang === "ar" ? "اختر خيار التغليف المخصص المناسب لطلبك" : "Select customized packaging option for your order"}
                   </p>
                 </div>
               </div>
@@ -137,8 +137,8 @@ function Checkout() {
                     className="accent-primary"
                   />
                   <div className="text-xs">
-                    <span className="block font-semibold">{lang === "ar" ? "نعم، أريد صندوق هدايا فاخر 🎁" : "Yes, Luxury Gift Box 🎁"}</span>
-                    <span className="text-[11px] text-muted-foreground">{lang === "ar" ? "تغليف مخملي + شريطة وكارت" : "Velvet box + Ribbon & Card"}</span>
+                    <span className="block font-semibold">{lang === "ar" ? "نعم، أريد صندوق التغليف المخصص 🎁" : "Yes, Customized Luxury Box 🎁"}</span>
+                    <span className="text-[11px] text-muted-foreground">{lang === "ar" ? "صندوق مخملي فاخر مخصص من لاستيلا" : "Customized velvet Lastella box"}</span>
                   </div>
                 </label>
 
