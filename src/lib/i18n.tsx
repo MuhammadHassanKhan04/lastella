@@ -147,11 +147,16 @@ interface I18nCtx {
 const Ctx = createContext<I18nCtx | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("en");
+  const [lang, setLangState] = useState<Lang>("ar");
 
   useEffect(() => {
-    const saved = (typeof window !== "undefined" && localStorage.getItem("lastella-lang")) as Lang | null;
-    if (saved === "ar" || saved === "en") setLangState(saved);
+    const saved = typeof window !== "undefined" ? (localStorage.getItem("lastella-lang") as Lang | null) : null;
+    if (saved === "ar" || saved === "en") {
+      setLangState(saved);
+    } else {
+      setLangState("ar");
+      try { localStorage.setItem("lastella-lang", "ar"); } catch {}
+    }
   }, []);
 
   useEffect(() => {
