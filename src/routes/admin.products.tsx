@@ -28,6 +28,8 @@ interface Row {
   colors: string[];
 }
 
+import { FALLBACK_PRODUCTS } from "@/lib/products";
+
 const CATEGORIES = ["necklace", "bracelet", "ring", "earrings", "pendant", "watch"];
 const BADGES = ["", "new", "sale", "bestseller"];
 
@@ -41,9 +43,35 @@ function AdminProducts() {
   async function refresh() {
     setLoading(true);
     try {
-      const res = await fetch("/api/products?all=true");
-      const data = await res.json();
-      setRows(Array.isArray(data) ? data : []);
+      const res = await fetch("/api/products?all=true").catch(() => null);
+      if (res && res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setRows(data);
+          setLoading(false);
+          return;
+        }
+      }
+      const fallbackRows: Row[] = FALLBACK_PRODUCTS.map((p) => ({
+        id: p.id,
+        slug: p.slug,
+        name_en: p.name.en,
+        name_ar: p.name.ar,
+        category: p.category,
+        price: p.price,
+        old_price: p.oldPrice,
+        image: p.image,
+        stock: p.stock,
+        active: true,
+        badge: p.badge || "",
+        rating: p.rating,
+        reviews: p.reviews,
+        description_en: p.description,
+        sizes: p.sizes,
+        colors: p.colors,
+        images: p.images,
+      }));
+      setRows(fallbackRows);
     } catch (e) {
       toast.error("Failed to load products");
     }
