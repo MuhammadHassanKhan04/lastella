@@ -8,10 +8,7 @@ let db = null;
 
 async function getDb() {
   if (db) return db;
-  client = new MongoClient(MONGODB_URI, {
-    tlsInsecure: true,
-    serverSelectionTimeoutMS: 5000,
-  });
+  client = new MongoClient(MONGODB_URI);
   await client.connect();
   db = client.db(DB_NAME);
   return db;
