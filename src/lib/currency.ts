@@ -1,8 +1,11 @@
-export const CURRENCY = "SAR";
-export const CURRENCY_SYMBOL = "SAR";
+export const CURRENCY = "OMR";
+export const CURRENCY_SYMBOL = "OMR";
 
-const fmt = new Intl.NumberFormat("ar-SA", { maximumFractionDigits: 2 });
-
-export function formatPrice(amount: number): string {
-  return `${CURRENCY_SYMBOL} ${fmt.format(amount)}`;
+export function formatPrice(amount: number, lang: "en" | "ar" = "ar"): string {
+  const num = Number(amount || 0);
+  const formatted = num.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  });
+  return lang === "ar" ? `${formatted} ر.ع.` : `OMR ${formatted}`;
 }

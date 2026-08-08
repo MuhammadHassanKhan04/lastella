@@ -20,6 +20,7 @@ interface Order {
   address: string;
   city: string;
   postal_code: string | null;
+  need_gift_box?: boolean;
   subtotal: number;
   shipping: number;
   tax: number;
@@ -173,6 +174,20 @@ function AdminOrders() {
                         <p className="text-muted-foreground">{o.email}</p>
                         <p className="text-muted-foreground">{o.phone}</p>
                         <p className="text-muted-foreground">{o.address}, {o.city}{o.postal_code ? ` – ${o.postal_code}` : ""}</p>
+                        
+                        {/* Gift Packaging Box Status */}
+                        <div className="pt-2">
+                          {o.need_gift_box ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-600 text-xs font-semibold border border-rose-500/20">
+                              🎁 Needs Luxury Gift Box (صندوق هدايا فاخر)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary text-muted-foreground text-xs font-medium border border-border/40">
+                              📦 Standard Packaging (تغليف عادي)
+                            </span>
+                          )}
+                        </div>
+
                         <p className="text-xs uppercase tracking-wider mt-3">Payment: <span className="font-medium">{o.payment_method}</span></p>
                         {o.notes && <p className="text-xs italic text-muted-foreground mt-2">"{o.notes}"</p>}
                         <div className="mt-4">

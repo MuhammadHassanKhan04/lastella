@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Banknote, Truck } from "lucide-react";
+import { Banknote, Gift, Truck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
@@ -17,11 +17,12 @@ function Checkout() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { cart, cartTotal, clearCart } = useStore();
-  const shipping = cartTotal > 200 ? 0 : 25;
-  const tax = cartTotal * 0.15; // Saudi VAT 15%
+  const shipping = cartTotal > 20 ? 0 : 2; // Free shipping over OMR 20, else 2 OMR
+  const tax = cartTotal * 0.05; // Oman VAT 5%
   const grand = cartTotal + shipping + tax;
   const [submitting, setSubmitting] = useState(false);
   const [payment, setPayment] = useState<"cod" | "bank">("cod");
+  const [needBox, setNeedBox] = useState<"yes" | "no">("yes");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,7 +42,8 @@ function Checkout() {
         address: String(fd.get("address")),
         city: String(fd.get("city")),
         postal_code: String(fd.get("postal_code") || ""),
-        country: "Saudi Arabia",
+        country: String(fd.get("country") || "Sultanate of Oman"),
+        need_gift_box: needBox === "yes",
         subtotal: cartTotal,
         shipping,
         tax,
@@ -52,7 +54,7 @@ function Checkout() {
         created_at: new Date().toISOString(),
         items: cart.map(({ product, qty, size, color }) => ({
           id: `item_${Math.random()}`,
-          product_name: `${product.name.en}${color ? ` - ${color}` : ""}${size ? ` - ${size}` : ""}`,
+          product_name: `${product.name[lang] || product.name.en}${color ? ` - ${color}` : ""}${size ? ` - ${size}` : ""}`,
           product_image: product.image,
           unit_price: product.price,
           quantity: qty,
@@ -93,20 +95,68 @@ function Checkout() {
         <div className="space-y-8">
           <Section title={lang === "ar" ? "معلومات التواصل" : "Contact Information"}>
             <Input name="email" placeholder="Email address" type="email" defaultValue={user?.email ?? ""} required />
-            <Input name="phone" placeholder={lang === "ar" ? "رقم الهاتف" : "Phone number (e.g. +966 5X XXX XXXX)"} required />
+            <Input name="phone" placeholder={lang === "ar" ? "رقم الهاتف (مثال: +968 9X XXX XXX)" : "Phone number (e.g. +968 9X XXX XXX)"} required />
           </Section>
-          <Section title={lang === "ar" ? "عنوان الشحن" : "Shipping Address"}>
+
+          <Section title={lang === "ar" ? "عنوان الشحن (سلطنة عُمان)" : "Shipping Address (Oman)"}>
             <div className="grid sm:grid-cols-2 gap-3">
               <Input name="first_name" placeholder={lang === "ar" ? "الاسم الأول" : "First name"} required />
               <Input name="last_name" placeholder={lang === "ar" ? "الاسم الأخير" : "Last name"} required />
             </div>
-            <Input name="address" placeholder={lang === "ar" ? "العنوان" : "Street address"} required />
+            <Input name="address" placeholder={lang === "ar" ? "العنوان والمنطقة" : "Street address & region"} required />
             <div className="grid sm:grid-cols-3 gap-3">
-              <Input name="city" placeholder={lang === "ar" ? "المدينة" : "City (e.g. Riyadh, Jeddah)"} required />
+              <Input name="city" placeholder={lang === "ar" ? "المدينة (مسقط، صلالة، صحار...)" : "City (Muscat, Salalah...)"} required />
               <Input name="postal_code" placeholder={lang === "ar" ? "الرمز البريدي" : "Postal code"} />
-              <Input name="country" placeholder="Country" defaultValue="Saudi Arabia" readOnly />
+              <Input name="country" placeholder="Country" defaultValue={lang === "ar" ? "سلطنة عُمان" : "Sultanate of Oman"} readOnly />
             </div>
-            <textarea name="notes" placeholder={lang === "ar" ? "ملاحظات (اختياري)" : "Order notes (optional)"} className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors min-h-[80px]" />
+            <textarea name="notes" placeholder={lang === "ar" ? "ملاحظات الإهداء أو الشحن (اختياري)" : "Gift or shipping notes (optional)"} className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors min-h-[80px]" />
+          </Section>
+
+          {/* Gift Packaging Box Selection */}
+          <Section title={lang === "ar" ? "خيارات التغليف (صندوق هدايا)" : "Gift Packaging Box Option"}>
+            <div className="glass rounded-2xl p-5 border border-primary/30 bg-primary/5 space-y-4">
+              <div className="flex items-center gap-3">
+                <Gift className="h-6 w-6 text-primary shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-sm">
+                    {lang === "ar" ? "هل تحتاج لإضافة صندوق هدايا فاخر؟" : "Do you need a Luxury Gift Box?"}
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {lang === "ar" ? "اختر خيار التغليف المناسب لطلبك" : "Select packaging option for your order"}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="grid sm:grid-cols-2 gap-3 pt-1">
+                <label className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${needBox === "yes" ? "border-primary bg-primary/10 font-medium" : "border-border hover:bg-secondary/40"}`}>
+                  <input
+                    type="radio"
+                    name="gift_box"
+                    checked={needBox === "yes"}
+                    onChange={() => setNeedBox("yes")}
+                    className="accent-primary"
+                  />
+                  <div className="text-xs">
+                    <span className="block font-semibold">{lang === "ar" ? "نعم، أريد صندوق هدايا فاخر 🎁" : "Yes, Luxury Gift Box 🎁"}</span>
+                    <span className="text-[11px] text-muted-foreground">{lang === "ar" ? "تغليف مخملي + شريطة وكارت" : "Velvet box + Ribbon & Card"}</span>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${needBox === "no" ? "border-primary bg-primary/10 font-medium" : "border-border hover:bg-secondary/40"}`}>
+                  <input
+                    type="radio"
+                    name="gift_box"
+                    checked={needBox === "no"}
+                    onChange={() => setNeedBox("no")}
+                    className="accent-primary"
+                  />
+                  <div className="text-xs">
+                    <span className="block font-semibold">{lang === "ar" ? "لا، تغليف بريدي عادي 📦" : "No, Standard Packaging 📦"}</span>
+                    <span className="text-[11px] text-muted-foreground">{lang === "ar" ? "كيس بريدي واقي كلاسيكي" : "Standard eco pouch"}</span>
+                  </div>
+                </label>
+              </div>
+            </div>
           </Section>
           <Section title={lang === "ar" ? "طريقة الدفع" : "Payment Method"}>
             {[
